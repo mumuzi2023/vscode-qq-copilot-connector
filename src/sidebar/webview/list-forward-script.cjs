@@ -95,7 +95,7 @@ function renderListForwardScript() {
       if (!searchQuery.trim() && state.chats.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.textContent = '暂无会话。先让 NCat 收到一条私聊或群消息。';
+        empty.textContent = '暂无会话。先让本地后端或 QQBot 收到一条私聊或群消息。';
         root.appendChild(empty);
         return;
       }

@@ -294,9 +294,9 @@ class NCatSidebarProvider {
             trigger: 'settings-start-backend',
           });
           if (!result?.ok) {
-            vscode.window.showWarningMessage(`启动 NCat 后端失败: ${result?.reason || '未知错误'}`);
+            vscode.window.showWarningMessage(`启动本地后端失败: ${result?.reason || '未知错误'}`);
           } else {
-            vscode.window.setStatusBarMessage('NCat 后端启动请求已发送', 2400);
+            vscode.window.setStatusBarMessage('本地后端启动请求已发送', 2400);
           }
           this.pushState();
           return;
@@ -308,9 +308,9 @@ class NCatSidebarProvider {
             disconnectSocket: true,
           });
           if (!result?.ok) {
-            vscode.window.showWarningMessage(`停止 NCat 后端: ${result?.reason || '未确认成功'}`);
+            vscode.window.showWarningMessage(`停止本地后端: ${result?.reason || '未确认成功'}`);
           } else {
-            vscode.window.setStatusBarMessage('NCat 后端已停止', 2400);
+            vscode.window.setStatusBarMessage('本地后端已停止', 2400);
           }
           this.pushState();
           return;
@@ -332,7 +332,7 @@ class NCatSidebarProvider {
           const target = 'https://github.com/NapNeko/NapCatQQ/releases';
           const opened = await vscode.env.openExternal(vscode.Uri.parse(target));
           if (!opened) {
-            vscode.window.showWarningMessage('NCat 发布页打开失败，请稍后重试。');
+            vscode.window.showWarningMessage('本地后端发布页打开失败，请稍后重试。');
           }
           return;
         }

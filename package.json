@@ -1,7 +1,7 @@
 {
-  "name": "ncat-vscode-qq",
-  "displayName": "NCat-VSC-QQ",
-  "description": "VS Code QQ connector with sidebar chat UI, QQBot MCP tools, and Copilot integration.",
+  "name": "vscode-qq-copilot-connector",
+  "displayName": "QQ Copilot Connector",
+  "description": "VS Code QQ connector with QQBot MCP tools, Copilot integration, and an optional local QQ backend mode.",
   "version": "1.0.2",
   "private": true,
   "type": "module",
@@ -30,35 +30,35 @@
     "commands": [
       {
         "command": "ncat.connect",
-        "title": "NCat: Connect"
+        "title": "QQ Connector: Connect"
       },
       {
         "command": "ncat.disconnect",
-        "title": "NCat: Disconnect"
+        "title": "QQ Connector: Disconnect"
       },
       {
         "command": "ncat.bossKey",
-        "title": "NCat: Boss Key (Go Explorer)"
+        "title": "QQ Connector: Boss Key (Go Explorer)"
       },
       {
         "command": "ncat.startBackend",
-        "title": "NCat: Start Backend"
+        "title": "QQ Connector: Start Local Backend"
       },
       {
         "command": "ncat.sendPrivateMessage",
-        "title": "NCat: Send Private Message"
+        "title": "QQ Connector: Send Private Message"
       },
       {
         "command": "ncat.sendGroupMessage",
-        "title": "NCat: Send Group Message"
+        "title": "QQ Connector: Send Group Message"
       },
       {
         "command": "ncat.authorizeAI",
-        "title": "NCat: Authorize AI Access"
+        "title": "QQ Connector: Authorize AI Access"
       },
       {
         "command": "ncat.showLogs",
-        "title": "NCat: Show Logs"
+        "title": "QQ Connector: Show Logs"
       }
     ],
     "mcpServerDefinitionProviders": [
@@ -71,7 +71,7 @@
       "activitybar": [
         {
           "id": "ncat",
-          "title": "NCat",
+          "title": "QQ",
           "icon": "media/ncat.svg"
         }
       ]
@@ -87,7 +87,7 @@
       ]
     },
     "configuration": {
-      "title": "NCat",
+      "title": "QQ Copilot Connector",
       "properties": {
         "ncat.backendMode": {
           "type": "string",
@@ -96,17 +96,17 @@
             "qqbot"
           ],
           "default": "ncat",
-          "description": "Backend mode. 'ncat' uses NapCat/OneBot, 'qqbot' uses the official QQ Bot API. Reload window after changing this value."
+          "description": "Backend mode. 'ncat' uses the local OneBot-compatible backend, 'qqbot' uses the official QQ Bot API. Reload window after changing this value."
         },
         "ncat.wsUrl": {
           "type": "string",
           "default": "ws://127.0.0.1:3001",
-          "description": "NCat OneBot WebSocket server URL."
+          "description": "Local OneBot-compatible backend WebSocket server URL."
         },
         "ncat.rootDir": {
           "type": "string",
           "default": "",
-          "description": "NCat root directory. Supports absolute path or workspace-relative path."
+          "description": "Local backend root directory. Supports absolute path or workspace-relative path."
         },
         "ncat.quickLoginUin": {
           "type": "string",
@@ -116,7 +116,7 @@
         "ncat.token": {
           "type": "string",
           "default": "",
-          "description": "NCat OneBot access token."
+          "description": "Local OneBot-compatible backend access token."
         },
         "ncat.tokenFile": {
           "type": "string",

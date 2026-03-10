@@ -5,7 +5,7 @@ async function ensureConnectedWithPrompt(runtimeInstance) {
     return true;
   }
 
-  const answer = await vscode.window.showWarningMessage('NCat is offline. Connect now?', 'Connect');
+  const answer = await vscode.window.showWarningMessage('QQ connector is offline. Connect now?', 'Connect');
   if (answer !== 'Connect') {
     return false;
   }
@@ -13,7 +13,7 @@ async function ensureConnectedWithPrompt(runtimeInstance) {
   const connected = await runtimeInstance.ensureConnected();
   if (!connected) {
     runtimeInstance.log('send command aborted: ensureConnected failed.');
-    vscode.window.showErrorMessage('NCat connection did not become ready.');
+    vscode.window.showErrorMessage('QQ connector connection did not become ready.');
     return false;
   }
 

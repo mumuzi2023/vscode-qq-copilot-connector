@@ -230,7 +230,7 @@ class QQBotRuntime {
     this.pendingRequests = new Map();
     this.autoReplyChains = new Map();
 
-    this.output = vscode.window.createOutputChannel('QQBot VSC');
+    this.output = vscode.window.createOutputChannel('QQ Copilot Connector');
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.statusBar.command = 'ncat.connect';
     this.statusBar.text = '$(plug) QQBot: Offline';
@@ -1668,7 +1668,7 @@ class QQBotRuntime {
   }
 
   async sendPokeToChat() {
-    throw new Error('QQBot official API does not support NCat poke action in this frontend.');
+    throw new Error('QQBot official API does not support the local backend poke action in this frontend.');
   }
 
   async loadOlderMessagesForChat() {

@@ -21,7 +21,7 @@ function renderHtml(webview) {
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NCat Chats</title>
+  <title>QQ Chats</title>
   <style>
     html {
       width: 100%;
@@ -1681,7 +1681,7 @@ function renderHtml(webview) {
         <div id="account" class="account">
           <span id="accountAvatar" class="account-avatar">N</span>
           <span class="account-meta">
-            <span id="accountName" class="account-name">NCat</span>
+            <span id="accountName" class="account-name">QQ</span>
             <span id="accountDot" class="presence-dot"></span>
           </span>
         </div>
@@ -1785,16 +1785,16 @@ function renderHtml(webview) {
           <div class="settings-group-title">常用</div>
           <button id="settingOpenLogs" class="settings-action" type="button">打开日志</button>
           <button id="settingOpenExt" class="settings-action" type="button">打开扩展设置</button>
-          <button id="settingOpenNapcatReleases" class="settings-action" type="button">打开NCat发布页面</button>
+          <button id="settingOpenNapcatReleases" class="settings-action" type="button">打开本地后端发布页面</button>
         </div>
         <div class="settings-group">
           <div class="settings-group-title">后端模式</div>
           <select id="settingBackendMode" class="settings-input">
-            <option value="ncat">NCat / OneBot</option>
+            <option value="ncat">本地 QQ / OneBot</option>
             <option value="qqbot">QQBot 官方 API</option>
           </select>
           <div id="settingsNcatSection">
-            <input id="settingRootDir" class="settings-input" type="text" placeholder="NCat 根目录（例如 D:\\NCat）" />
+            <input id="settingRootDir" class="settings-input" type="text" placeholder="本地后端根目录（兼容 ncat/NapCat）" />
             <input id="settingTokenFile" class="settings-input" type="text" placeholder="Token 文件（可选，支持相对根目录）" />
             <input id="settingQuickLoginUin" class="settings-input" type="text" placeholder="快速登录 QQ 号（可选，如 2580453344）" />
           </div>
@@ -1858,7 +1858,7 @@ function renderHtml(webview) {
       runtimeBlockedByOther: false,
       runtimeBlockedOwnerPid: 0,
       selfUserId: '',
-      selfNickname: 'NCat',
+      selfNickname: 'QQ',
       selfAvatarUrl: '',
       chats: [],
       directoryResults: [],
@@ -2536,7 +2536,7 @@ ${renderMessageScript()}
       const avatarNode = document.getElementById('accountAvatar');
       const nameNode = document.getElementById('accountName');
       const dotNode = document.getElementById('accountDot');
-      const nickname = String(state.selfNickname || 'NCat');
+      const nickname = String(state.selfNickname || 'QQ');
       const uid = String(state.selfUserId || '').trim();
       const avatarUrl = String(state.selfAvatarUrl || '').trim() || (uid ? ('https://q1.qlogo.cn/g?b=qq&nk=' + encodeURIComponent(uid) + '&s=100') : '');
       nameNode.textContent = nickname;

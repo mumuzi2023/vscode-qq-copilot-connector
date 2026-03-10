@@ -857,11 +857,11 @@ class NCatRuntime {
       acquired: false,
     };
 
-    this.output = vscode.window.createOutputChannel('NCat VSC');
+    this.output = vscode.window.createOutputChannel('QQ Copilot Connector');
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.statusBar.command = 'ncat.connect';
-    this.statusBar.text = '$(plug) NCat: Offline';
-    this.statusBar.tooltip = 'Click to connect NCat';
+    this.statusBar.text = '$(plug) Local QQ: Offline';
+    this.statusBar.tooltip = 'Click to connect the local QQ backend';
     this.statusBar.show();
     this.restoreHiddenTargets();
     this.log('Runtime initialized.');
@@ -1018,7 +1018,7 @@ class NCatRuntime {
     const ownerText = this.runtimeBlockedOwnerPid ? `（PID ${this.runtimeBlockedOwnerPid}）` : '';
     this.log(`runtime start blocked: another window is running${ownerText}`);
     if (!silent) {
-      vscode.window.showWarningMessage(`另一个 VS Code 窗口的 NCat 插件正在运行${ownerText}。当前窗口启动无效。`);
+      vscode.window.showWarningMessage(`另一个 VS Code 窗口的 QQ Connector 实例正在运行${ownerText}。当前窗口启动无效。`);
     }
     return {
       ok: false,
@@ -1037,7 +1037,7 @@ class NCatRuntime {
     const activeResult = this.ensureRuntimeActive({ silent });
     if (!activeResult.ok) {
       this.runtimeActive = false;
-      this.statusBar.text = '$(circle-large-outline) NCat: Stopped';
+      this.statusBar.text = '$(circle-large-outline) QQ Connector: Stopped';
       this.statusBar.tooltip = 'Plugin not running in current window';
       this.emitUiUpdate();
       return activeResult;
@@ -1067,7 +1067,7 @@ class NCatRuntime {
     });
     this.releaseRuntimeLock();
     this.connectionState = 'offline';
-    this.statusBar.text = '$(circle-large-outline) NCat: Stopped';
+    this.statusBar.text = '$(circle-large-outline) QQ Connector: Stopped';
     this.statusBar.tooltip = 'Plugin not running in current window';
     this.emitUiUpdate();
     return result;
@@ -2006,7 +2006,7 @@ class NCatRuntime {
     const config = options.config || vscode.workspace.getConfiguration();
     const rootDir = this.resolveNCatRootDir(config);
     if (!rootDir) {
-      const msg = '未设置 ncat.rootDir，无法启动后端。';
+      const msg = '未设置本地后端目录（配置项 ncat.rootDir），无法启动后端。';
       this.log(`startBackend skipped: ${msg}`);
       return {
         ok: false,
@@ -2014,7 +2014,7 @@ class NCatRuntime {
       };
     }
     if (!fs.existsSync(rootDir)) {
-      const msg = `NCat 根目录不存在: ${rootDir}`;
+      const msg = `本地后端目录不存在: ${rootDir}`;
       this.log(`startBackend skipped: ${msg}`);
       return {
         ok: false,
@@ -2071,7 +2071,7 @@ class NCatRuntime {
     const launchCandidates = this.collectBackendLaunchCandidates(config, rootDir);
     const quickLoginUin = this.resolveQuickLoginUin(config);
     if (launchCandidates.length === 0) {
-      const msg = `未找到启动脚本，请检查 ncat.rootDir。root=${rootDir}`;
+      const msg = `未找到启动脚本，请检查本地后端目录（ncat.rootDir）。root=${rootDir}`;
       this.log(`startBackend failed: ${msg}`);
       return {
         ok: false,
@@ -2160,10 +2160,10 @@ class NCatRuntime {
       this.cleanupSocketOnly();
       this.connectionState = 'offline';
       if (this.runtimeActive) {
-        this.statusBar.text = '$(plug) NCat: Offline';
+        this.statusBar.text = '$(plug) Local QQ: Offline';
         this.statusBar.tooltip = enterManualMode ? 'Backend stopped manually' : 'Disconnected manually';
       } else {
-        this.statusBar.text = '$(circle-large-outline) NCat: Stopped';
+        this.statusBar.text = '$(circle-large-outline) QQ Connector: Stopped';
         this.statusBar.tooltip = 'Plugin not running in current window';
       }
     }
@@ -2893,7 +2893,7 @@ class NCatRuntime {
       runtimeBlockedByOther: Boolean(this.runtimeBlockedByOther),
       runtimeBlockedOwnerPid: Number(this.runtimeBlockedOwnerPid || 0),
       selfUserId: String(this.selfUserId || ''),
-      selfNickname: String(this.selfNickname || 'NCat'),
+      selfNickname: String(this.selfNickname || 'QQ'),
       selfAvatarUrl: this.selfUserId ? getPrivateAvatarUrl(this.selfUserId) : '',
       chats: visibleChats.map((item) => {
         const list = Array.isArray(item.messages) ? item.messages : [];
@@ -3095,7 +3095,7 @@ class NCatRuntime {
 
     const brief = toBrief(segments);
     this.statusBar.text = `$(comment-discussion) ${clipText(brief, 24)}`;
-    this.statusBar.tooltip = 'NCat latest message';
+    this.statusBar.tooltip = 'Latest QQ message';
   }
 
   appendOutgoingPrivate(userId, message, messageId = '') {
@@ -3207,7 +3207,7 @@ class NCatRuntime {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.log(`connect() ignored: already connected (${reason}).`);
       if (!silent) {
-        vscode.window.showInformationMessage('NCat is already connected.');
+        vscode.window.showInformationMessage('Local QQ backend is already connected.');
       }
       return;
     }
@@ -3243,14 +3243,14 @@ class NCatRuntime {
       }
       wsUrl = url.toString();
     } catch {
-      vscode.window.showErrorMessage(`Invalid ncat.wsUrl: ${rawUrl}`);
+      vscode.window.showErrorMessage(`Invalid local backend wsUrl: ${rawUrl}`);
       this.log(`Invalid wsUrl: ${rawUrl}`);
       return;
     }
 
     this.connectionState = 'connecting';
     this.emitUiUpdate();
-    this.statusBar.text = '$(sync~spin) NCat: Connecting';
+    this.statusBar.text = '$(sync~spin) Local QQ: Connecting';
     this.statusBar.tooltip = wsUrl;
     this.log(`Connecting (${reason}) to ${wsUrl}`);
     if (tokenInfo.source === 'env') {
@@ -3282,12 +3282,12 @@ class NCatRuntime {
       this.reconnectAttempts = 0;
       this.historyLoadedForConnection = false;
       this.clearReconnectTimer();
-      this.statusBar.text = '$(radio-tower) NCat: Connected';
-      this.statusBar.tooltip = 'NCat connected';
+      this.statusBar.text = '$(radio-tower) Local QQ: Connected';
+      this.statusBar.tooltip = 'Local QQ backend connected';
       this.startPolling();
       setTimeout(() => this.sendGetLoginInfo(), 300);
       this.log('WebSocket open.');
-      vscode.window.setStatusBarMessage('NCat connected', 3000);
+      vscode.window.setStatusBarMessage('Local QQ backend connected', 3000);
     });
 
     ws.on('unexpected-response', (_req, response) => {
@@ -3303,12 +3303,12 @@ class NCatRuntime {
         this.ws = null;
       }
 
-      this.rejectAllPending(new Error('NCat connection closed.'));
+      this.rejectAllPending(new Error('Local QQ backend connection closed.'));
       this.stopPolling();
       this.connectionState = 'offline';
       this.historyLoadedForConnection = false;
       this.emitUiUpdate();
-      this.statusBar.text = '$(plug) NCat: Offline';
+      this.statusBar.text = '$(plug) Local QQ: Offline';
       this.statusBar.tooltip = `Disconnected (${code}${reasonText ? `, ${reasonText}` : ''})`;
       this.log(`WebSocket closed. code=${code}, reason=${String(reasonText || '')}`);
 
@@ -3322,11 +3322,11 @@ class NCatRuntime {
       this.stopPolling();
       this.connectionState = 'offline';
       this.emitUiUpdate();
-      this.statusBar.text = '$(error) NCat: Error';
+      this.statusBar.text = '$(error) Local QQ: Error';
       this.statusBar.tooltip = String(error?.message || error);
       this.log(`WebSocket error: ${error?.message || String(error)}`);
       if (!silent) {
-        vscode.window.showErrorMessage(`NCat connection failed: ${error?.message || 'unknown error'}`);
+        vscode.window.showErrorMessage(`Local QQ backend connection failed: ${error?.message || 'unknown error'}`);
       }
     });
   }
@@ -3520,7 +3520,7 @@ class NCatRuntime {
 
     this.connectionState = 'reconnecting';
     this.emitUiUpdate();
-    this.statusBar.text = '$(sync~spin) NCat: Reconnecting';
+    this.statusBar.text = '$(sync~spin) Local QQ: Reconnecting';
     this.statusBar.tooltip = `Retry in ${delay}ms`;
     this.log(`Scheduling reconnect #${this.reconnectAttempts} in ${delay}ms (trigger=${trigger}).`);
 
@@ -3607,9 +3607,9 @@ class NCatRuntime {
     this.cleanupSocketOnly();
     this.connectionState = 'offline';
     this.emitUiUpdate();
-    this.statusBar.text = '$(plug) NCat: Offline';
+    this.statusBar.text = '$(plug) Local QQ: Offline';
     this.statusBar.tooltip = 'Disconnected manually';
-    vscode.window.setStatusBarMessage('NCat disconnected', 2000);
+    vscode.window.setStatusBarMessage('Local QQ backend disconnected', 2000);
   }
 
   sendGetLoginInfo() {
@@ -3634,7 +3634,7 @@ class NCatRuntime {
   async sendPrivateMessage(userId, message) {
     const ok = await this.ensureConnected();
     if (!ok) {
-      throw new Error('NCat is not connected.');
+      throw new Error('Local QQ backend is not connected.');
     }
 
     const composed = normalizeOutgoingRequest(message);
@@ -3649,7 +3649,7 @@ class NCatRuntime {
     });
 
     if (response?.status !== 'ok') {
-      throw new Error(response?.wording || response?.message || 'Unknown NCat error.');
+      throw new Error(response?.wording || response?.message || 'Unknown local backend error.');
     }
 
     this.appendOutgoingPrivate(userId, composed, response?.data?.message_id);
@@ -3659,7 +3659,7 @@ class NCatRuntime {
   async sendGroupMessage(groupId, message) {
     const ok = await this.ensureConnected();
     if (!ok) {
-      throw new Error('NCat is not connected.');
+      throw new Error('Local QQ backend is not connected.');
     }
 
     const composed = normalizeOutgoingRequest(message);
@@ -3674,7 +3674,7 @@ class NCatRuntime {
     });
 
     if (response?.status !== 'ok') {
-      throw new Error(response?.wording || response?.message || 'Unknown NCat error.');
+      throw new Error(response?.wording || response?.message || 'Unknown local backend error.');
     }
 
     this.appendOutgoingGroup(groupId, composed, response?.data?.message_id);
@@ -3710,7 +3710,7 @@ class NCatRuntime {
   async sendJsonMessageToChat(chatId, rawJsonText, replyToMessageId = '') {
     const ok = await this.ensureConnected();
     if (!ok) {
-      throw new Error('NCat is not connected.');
+      throw new Error('Local QQ backend is not connected.');
     }
 
     const fullId = String(chatId || '').trim();
@@ -3772,7 +3772,7 @@ class NCatRuntime {
     this.log(`send_json_msg -> chat=${fullId}, json_len=${normalizedRaw.length}`);
     const response = await this.callApi(action, params);
     if (response?.status !== 'ok') {
-      throw new Error(response?.wording || response?.message || 'Unknown NCat error.');
+      throw new Error(response?.wording || response?.message || 'Unknown local backend error.');
     }
 
     const sessionId = `${chatType}:${targetId}`;
@@ -3849,7 +3849,7 @@ class NCatRuntime {
   async recallMessageFromChat(chatId, rawMessageId, localMessageId = '') {
     const ok = await this.ensureConnected();
     if (!ok) {
-      throw new Error('NCat is not connected.');
+      throw new Error('Local QQ backend is not connected.');
     }
 
     const fullId = String(chatId || '').trim();
@@ -3873,7 +3873,7 @@ class NCatRuntime {
       message_id: toActionId(rawId),
     });
     if (response?.status !== 'ok') {
-      throw new Error(response?.wording || response?.message || 'Unknown NCat error.');
+      throw new Error(response?.wording || response?.message || 'Unknown local backend error.');
     }
 
     const updated = this.applyLocalRecall(fullId, rawId, localMessageId);
@@ -4153,7 +4153,7 @@ class NCatRuntime {
   async sendPokeToChat(chatId, pokeTargetId = '') {
     const ok = await this.ensureConnected();
     if (!ok) {
-      throw new Error('NCat is not connected.');
+      throw new Error('Local QQ backend is not connected.');
     }
 
     const fullId = String(chatId || '').trim();
@@ -4468,7 +4468,7 @@ class NCatRuntime {
 
   callApi(action, params) {
     if (!this.isConnected() || !this.ws) {
-      return Promise.reject(new Error('NCat is not connected.'));
+      return Promise.reject(new Error('Local QQ backend is not connected.'));
     }
 
     const echo = `req-${++this.seq}`;
@@ -4477,7 +4477,7 @@ class NCatRuntime {
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(echo);
         this.log(`API timeout: ${action}, echo=${echo}`);
-        reject(new Error(`NCat API timeout: ${action}`));
+        reject(new Error(`Local backend API timeout: ${action}`));
       }, 8000);
 
       this.pendingRequests.set(echo, {
@@ -4535,7 +4535,7 @@ class NCatRuntime {
           this.contactDirectory.clear();
           this.contactDirectoryLoaded = false;
         }
-        this.statusBar.text = `$(account) NCat: ${nickname}`;
+        this.statusBar.text = `$(account) QQ: ${nickname}`;
         this.statusBar.tooltip = `QQ ${userId}`;
         this.log(`Login info updated: nickname=${nickname}, user_id=${userId}`);
         this.emitUiUpdate();
@@ -4575,7 +4575,7 @@ class NCatRuntime {
 
   cleanupSocketOnly() {
     this.stopPolling();
-    this.rejectAllPending(new Error('NCat request cancelled.'));
+    this.rejectAllPending(new Error('Local QQ backend request cancelled.'));
 
     if (this.ws) {
       try {

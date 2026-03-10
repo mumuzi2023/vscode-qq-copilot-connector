@@ -111,10 +111,10 @@ function activate(context) {
       trigger: 'command-start-backend',
     });
     if (!result?.ok) {
-      vscode.window.showWarningMessage(`NCat backend start failed: ${result?.reason || 'unknown error'}`);
+      vscode.window.showWarningMessage(`Local backend start failed: ${result?.reason || 'unknown error'}`);
       return;
     }
-    vscode.window.setStatusBarMessage('NCat backend launch requested', 2500);
+    vscode.window.setStatusBarMessage('Local backend launch requested', 2500);
   });
 
   const sendPrivateMessage = vscode.commands.registerCommand('ncat.sendPrivateMessage', async () => {
