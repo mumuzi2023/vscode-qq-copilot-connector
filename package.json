@@ -8,15 +8,15 @@
   "main": "./dist/extension.cjs",
   "activationEvents": [
     "onStartupFinished",
-    "onChatParticipant:tudou0133.vscode-qq-copilot-connector.qq"
+    "onChatParticipant:mumu2023.vscode-qq-copilot-connector.qq"
   ],
   "engines": {
     "vscode": "^1.85.0"
   },
-  "publisher": "tudou0133",
+  "publisher": "mumu2023",
   "author": {
-    "name": "tudou0133",
-    "url": "https://github.com/tudou0133"
+    "name": "mumu2023",
+    "url": "https://marketplace.visualstudio.com/manage/publishers/mumu2023"
   },
   "repository": {
     "type": "git",
@@ -79,13 +79,13 @@
     ],
     "mcpServerDefinitionProviders": [
       {
-        "id": "tudou0133.ncat-vscode-qq.qqbot-mcp",
+        "id": "mumu2023.vscode-qq-copilot-connector.qqbot-mcp",
         "label": "QQBot MCP"
       }
     ],
     "chatParticipants": [
       {
-        "id": "tudou0133.vscode-qq-copilot-connector.qq",
+        "id": "mumu2023.vscode-qq-copilot-connector.qq",
         "name": "qq",
         "fullName": "QQ Assistant",
         "description": "A QQ-aware assistant backed by VS Code language models, tools, and the local bridge.",

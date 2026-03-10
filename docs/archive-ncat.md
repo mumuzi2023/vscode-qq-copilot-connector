@@ -12,6 +12,6 @@ This file archives the NCat / NapCat / OneBot notes that were previously kept in
 
 - The extension previously documented an `ncat` backend mode for local NapCat / OneBot integration.
 - Windows was recommended for testing that backend flow.
-- The earlier README also listed the upstream repositories `tudou0133/ncat-vscode-qq` and `NapNeko/NapCatQQ` as references for that path.
+- The earlier README also kept external references for that local compatibility path.
 
 These notes are intentionally kept out of the main README so the project homepage stays focused on QQBot and MCP usage.

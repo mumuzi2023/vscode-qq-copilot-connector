@@ -66,3 +66,41 @@ jobs:
         with:
           files: ./qq-copilot-connector.vsix
           body_path: ./docs/release-notes.zh.md
+
+  publish-marketplace:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    needs: [package, publish-release]
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+    steps:
+      - name: Skip when VSCE_PAT is missing
+        if: env.VSCE_PAT == ''
+        run: echo "VSCE_PAT is not configured. Skip publishing to VS Code Marketplace."
+
+      - name: Checkout
+        if: env.VSCE_PAT != ''
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: env.VSCE_PAT != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: env.VSCE_PAT != ''
+        run: npm ci
+
+      - name: Download VSIX artifact
+        if: env.VSCE_PAT != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: qq-copilot-connector-vsix
+          path: .
+
+      - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx @vscode/vsce publish --packagePath ./qq-copilot-connector.vsix --pat "$VSCE_PAT"

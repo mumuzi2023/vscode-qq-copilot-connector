@@ -87,6 +87,43 @@ git push origin v0.0.1
 
 Marketplace 发布是可选项，不是强制步骤。
 
+### 先确认你的发布者身份
+
+你当前应使用的发布者身份是 `mumu2023`。
+
+确认方式：
+
+1. 打开 Visual Studio Marketplace 管理页：`https://marketplace.visualstudio.com/manage`
+2. 左侧发布者列表中看到的发布者 ID 就是你的 publisher 身份。
+3. 这个值必须与 `package.json` 里的 `publisher` 字段完全一致。
+
+当前仓库已经改成：
+
+- `publisher = mumu2023`
+
+如果管理页左侧显示的是 `mumu2023`，那说明这个身份已经拿到了，不需要再额外创建别的名字。
+
+### 如何创建 VSCE_PAT
+
+GitHub Actions 自动发布到 Marketplace 需要一个 PAT，仓库 Secret 名称固定为：
+
+- `VSCE_PAT`
+
+创建方式：
+
+1. 打开 Azure DevOps PAT 页面：`https://dev.azure.com/<你的组织>/_usersSettings/tokens`
+2. 选择新建 Token。
+3. 作用域至少包含与 Marketplace / Extension publishing 相关的发布权限。
+4. 创建后复制这个 Token，后面只会显示一次。
+
+然后到 GitHub 仓库页面：
+
+1. `Settings`
+2. `Secrets and variables`
+3. `Actions`
+4. 新建 Repository secret：`VSCE_PAT`
+5. 把刚才的 PAT 粘进去保存。
+
 需要的仓库 Secret：
 
 - `VSCE_PAT`
@@ -101,6 +138,11 @@ Marketplace 发布是可选项，不是强制步骤。
 1. tag 工作流先创建 GitHub Release。
 2. 再下载前面产出的 VSIX artifact。
 3. 最后把该 VSIX 发布到 VS Code Marketplace。
+
+当前工作流行为已经配置为：
+
+1. 有 `VSCE_PAT` 时自动发布到 Marketplace。
+2. 没有 `VSCE_PAT` 时自动跳过 Marketplace 发布，但 GitHub Release 仍会正常执行。
 
 ## 仓库配置检查清单
 
@@ -119,6 +161,7 @@ Marketplace 发布是可选项，不是强制步骤。
 2. `VSCE_PAT` 没配或已失效。
 3. Marketplace 发布者与 `package.json` 里的 `publisher` 不一致。
 4. `.vscodeignore` 排除了不该排除的文件，导致打包缺内容。
+5. 推送的是旧 tag，但没有把 tag 重新指向包含最新工作流的提交。
 
 建议先本地做这三个检查：
 

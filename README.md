@@ -2,73 +2,69 @@
 
 [中文说明](./README.zh.md)
 
-This repository is the standalone source tree for the VS Code extension only. It is intended for submission to the new repository at `mumuzi2023/vscode-qq-copilot-connector`, without bundling parent workspace code, upstream repositories, or local development artifacts.
+QQ Copilot Connector brings QQ conversations into VS Code and connects them with VS Code Chat, language models, and MCP tools.
 
 ![Extension preview](images/preview.png)
 
 ## Overview
 
-VS Code QQ Copilot Connector embeds QQ conversations into the VS Code sidebar and focuses on the QQ official Bot API workflow, with MCP tools that Copilot can call directly.
+This extension is designed for users who want to handle QQ conversations and VS Code AI workflows in one place. It uses the QQ official Bot API as the default connection mode and provides both a sidebar chat experience and a VS Code Chat participant.
 
-The extension currently includes:
+## Features
 
-- Sidebar conversation list and chat detail view
-- Text and image sending
-- QQBot MCP server registration for Copilot tool calling
-- Cached contact and message listing for MCP use
-- Theme-aware webview UI
-- Local avatar and chat display customization for QQBot mode
+- QQ conversation list and chat detail view inside the VS Code sidebar
+- QQ private and group text messaging through the QQ official Bot API
+- Image sending and QQBot markdown text mode
+- VS Code Chat participant `@qq`
+- QQBot MCP tools for Copilot integration
+- QQ remote auto-reply with model and tool support
+- `y/n` confirmation flow for sensitive remote tool execution
+- Multi-window routing commands: `@list`, `@path`, `@model`
+- Theme-aware chat UI with image and video preview
+- Reply quoting, merged-forward preview, sticker panel, and JSON message sending
+- Anonymized private-chat labels for openid-based QQ conversations
 
-NCat-related notes have been moved to [docs/archive-ncat.md](./docs/archive-ncat.md).
+## What You Can Do
 
-## Repository Scope
+- Read and reply to QQ messages without leaving VS Code
+- Use `@qq` in VS Code Chat and share the same assistant flow with QQ-side requests
+- Let Copilot call QQBot MCP tools to send messages or inspect cached contacts and chat history
+- Route remote requests to different VS Code windows when working with multiple workspaces
+- Review and approve higher-risk actions from QQ by replying `y` or `n`
 
-This repository should contain only the extension source and related assets:
+## Included MCP Tools
 
-- `src/` for extension logic
-- `images/` and `media/` for UI assets
-- `scripts/` for extension development helpers
-- `package.json`, `package-lock.json`, `.vscodeignore`, `.gitignore`, `LICENSE`, and documentation files
+- `qqbot_send_private_message`
+- `qqbot_send_group_message`
+- `qqbot_configure_primary_conversation`
+- `qqbot_list_messages`
+- `qqbot_list_contacts`
+- `qqbot_list_people`
+- `qqbot_get_status`
 
-It should not include local-only artifacts such as:
+## Quick Start
 
-- `node_modules/`
-- `.vscode/`
-- parent workspace folders outside this extension
-- nested runtime caches, logs, or temporary files
+1. Install the extension.
+2. Open the extension settings and fill in your QQBot AppID and ClientSecret.
+3. Connect QQBot.
+4. Use the sidebar for QQ conversations, or open VS Code Chat and talk to `@qq`.
 
-## Development
+## Remote System Commands
 
-### Requirements
+- `@list`: list currently registered VS Code windows and workspace paths
+- `@path`: route the current remote session to a specific window by index or path
+- `@model`: show available models for the current target window, with the active model first
 
-- Node.js 18+
-- VS Code 1.85+
-- QQ official Bot App credentials: AppID and ClientSecret
+## Screenshots
 
-### Install
-
-```bash
-npm install
-```
-
-### Run
-
-Open this folder in VS Code and start an Extension Development Host.
-
-### Release
-
-See [docs/release.md](./docs/release.md) for versioning, VSIX packaging, GitHub Release, and VS Code Marketplace publishing.
+The current preview image is shown above. More screenshots can be updated later as the UI evolves.
 
 ## Notes
 
-- QQBot mode depends on a valid AppID and ClientSecret.
-- The extension exposes QQBot MCP tools for Copilot after the QQBot settings are configured.
-- This project is a third-party integration and is not affiliated with Tencent or the upstream projects referenced below.
+- QQBot credentials are required for the official API workflow.
+- Some advanced actions can require confirmation before execution.
+- The extension focuses on QQBot as the primary workflow.
 
-## Thanks To
+## License
 
-This project references ideas, structure, or implementation details from the following repositories:
-
-- `sliverp/qqbot`: QQ official Bot API channel integration patterns and related backend behavior
-
-Thanks to the maintainers of those projects for publishing their work.
+MIT

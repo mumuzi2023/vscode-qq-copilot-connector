@@ -11,7 +11,7 @@ const { CHAT_PARTICIPANT_ID, registerChatParticipant } = require('./chat/chat-pa
 const { WindowRouter } = require('./chat/window-router.cjs');
 const { askForTarget, askForMessage, ensureConnectedWithPrompt } = require('./commands/prompt-utils.cjs');
 
-const QQBOT_MCP_PROVIDER_ID = 'tudou0133.ncat-vscode-qq.qqbot-mcp';
+const QQBOT_MCP_PROVIDER_ID = 'mumu2023.vscode-qq-copilot-connector.qqbot-mcp';
 const QQBOT_MCP_SCRIPT_PATH = ['dist', 'mcp', 'qqbot-mcp-server.cjs'];
 const QQ_ASSISTANT_HANDLE = '@qq';
 

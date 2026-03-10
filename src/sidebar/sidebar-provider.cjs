@@ -328,14 +328,6 @@ class NCatSidebarProvider {
           await vscode.commands.executeCommand('workbench.action.openSettings', 'ncat');
           return;
         }
-        if (action === 'openNapcatReleases') {
-          const target = 'https://github.com/NapNeko/NapCatQQ/releases';
-          const opened = await vscode.env.openExternal(vscode.Uri.parse(target));
-          if (!opened) {
-            vscode.window.showWarningMessage('本地后端发布页打开失败，请稍后重试。');
-          }
-          return;
-        }
         if (action === 'openBackendWeb') {
           const config = vscode.workspace.getConfiguration();
           const backendWeb = this.runtime.resolveBackendWebAccess(config);

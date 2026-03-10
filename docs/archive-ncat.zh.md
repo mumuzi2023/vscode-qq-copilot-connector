@@ -12,6 +12,6 @@
 
 - 这个扩展之前在 README 中描述过 `ncat` 后端模式，用于本地 NapCat / OneBot 接入。
 - 当时建议在 Windows 上测试这一路径。
-- 旧版 README 还把 `tudou0133/ncat-vscode-qq` 和 `NapNeko/NapCatQQ` 列为该路径的参考项目。
+- 旧版 README 曾保留过本地兼容后端路径的外部参考说明。
 
 这些内容现在不再放在主 README 中，以便仓库首页只聚焦 QQBot 和 MCP 的使用方式。
