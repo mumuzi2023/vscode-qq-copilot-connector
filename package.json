@@ -1,0 +1,234 @@
+{
+  "name": "ncat-vscode-qq",
+  "displayName": "NCat-VSC-QQ",
+  "description": "VS Code QQ connector with sidebar chat UI, QQBot MCP tools, and Copilot integration.",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "main": "./src/extension.cjs",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "publisher": "tudou0133",
+  "author": {
+    "name": "tudou0133",
+    "url": "https://github.com/tudou0133"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mumuzi2023/vscode-qq-copilot-connector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mumuzi2023/vscode-qq-copilot-connector/issues"
+  },
+  "homepage": "https://github.com/mumuzi2023/vscode-qq-copilot-connector/blob/main/README.md",
+  "icon": "images/icon.png",
+  "categories": [
+    "Other"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "ncat.connect",
+        "title": "NCat: Connect"
+      },
+      {
+        "command": "ncat.disconnect",
+        "title": "NCat: Disconnect"
+      },
+      {
+        "command": "ncat.bossKey",
+        "title": "NCat: Boss Key (Go Explorer)"
+      },
+      {
+        "command": "ncat.startBackend",
+        "title": "NCat: Start Backend"
+      },
+      {
+        "command": "ncat.sendPrivateMessage",
+        "title": "NCat: Send Private Message"
+      },
+      {
+        "command": "ncat.sendGroupMessage",
+        "title": "NCat: Send Group Message"
+      },
+      {
+        "command": "ncat.authorizeAI",
+        "title": "NCat: Authorize AI Access"
+      },
+      {
+        "command": "ncat.showLogs",
+        "title": "NCat: Show Logs"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "tudou0133.ncat-vscode-qq.qqbot-mcp",
+        "label": "QQBot MCP"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ncat",
+          "title": "NCat",
+          "icon": "media/ncat.svg"
+        }
+      ]
+    },
+    "views": {
+      "ncat": [
+        {
+          "type": "webview",
+          "id": "ncat.sidebarView",
+          "name": "Chats",
+          "icon": "media/ncat.svg"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "NCat",
+      "properties": {
+        "ncat.backendMode": {
+          "type": "string",
+          "enum": [
+            "ncat",
+            "qqbot"
+          ],
+          "default": "ncat",
+          "description": "Backend mode. 'ncat' uses NapCat/OneBot, 'qqbot' uses the official QQ Bot API. Reload window after changing this value."
+        },
+        "ncat.wsUrl": {
+          "type": "string",
+          "default": "ws://127.0.0.1:3001",
+          "description": "NCat OneBot WebSocket server URL."
+        },
+        "ncat.rootDir": {
+          "type": "string",
+          "default": "",
+          "description": "NCat root directory. Supports absolute path or workspace-relative path."
+        },
+        "ncat.quickLoginUin": {
+          "type": "string",
+          "default": "",
+          "description": "Optional QQ UIN for quick login on Windows. If set, extension starts NapCatWinBootMain.exe <uin> first."
+        },
+        "ncat.token": {
+          "type": "string",
+          "default": "",
+          "description": "NCat OneBot access token."
+        },
+        "ncat.tokenFile": {
+          "type": "string",
+          "default": "",
+          "description": "Optional token file path. If set, token auto-read tries this file first."
+        },
+        "ncat.tokenEnvVar": {
+          "type": "string",
+          "default": "NCAT_TOKEN",
+          "description": "Environment variable name used when ncat.token is empty."
+        },
+        "ncat.qqbotAppId": {
+          "type": "string",
+          "default": "",
+          "description": "QQBot official AppID used in qqbot backend mode."
+        },
+        "ncat.qqbotClientSecret": {
+          "type": "string",
+          "default": "",
+          "description": "QQBot official ClientSecret used in qqbot backend mode."
+        },
+        "ncat.qqbotBotName": {
+          "type": "string",
+          "default": "QQBot",
+          "description": "Display name shown in the sidebar when using qqbot backend mode."
+        },
+        "ncat.qqbotMarkdownSupport": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable official QQBot markdown message mode for text sending."
+        },
+        "ncat.qqbotPrimaryChatType": {
+          "type": "string",
+          "enum": [
+            "",
+            "private",
+            "group"
+          ],
+          "default": "",
+          "description": "Default QQBot conversation type used by MCP send tools when no targetId is provided."
+        },
+        "ncat.qqbotPrimaryChatId": {
+          "type": "string",
+          "default": "",
+          "description": "Default QQBot targetId used by MCP send tools when no targetId is provided."
+        },
+        "ncat.qqbotAutoReply": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically send AI replies for incoming QQBot messages."
+        },
+        "ncat.qqbotUseTools": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the language model to use available VS Code/MCP tools when auto-replying in qqbot mode."
+        },
+        "ncat.qqbotModelVendor": {
+          "type": "string",
+          "default": "copilot",
+          "description": "Preferred language model vendor for qqbot auto-reply. Leave empty to use any available model."
+        },
+        "ncat.qqbotModelFamily": {
+          "type": "string",
+          "default": "",
+          "description": "Optional preferred language model family for qqbot auto-reply."
+        },
+        "ncat.qqbotSystemPrompt": {
+          "type": "string",
+          "default": "你是在 VS Code 中运行的 QQBot 助手。回答要直接、简洁、准确。必要时可以调用可用工具。",
+          "description": "System prompt prefix used for qqbot auto-reply."
+        },
+        "ncat.qqbotMaxToolRounds": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Maximum number of tool-calling rounds per qqbot auto-reply request."
+        },
+        "ncat.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto connect when VS Code starts."
+        },
+        "ncat.autoReconnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reconnect automatically after unexpected disconnection."
+        },
+        "ncat.maxMessagesPerChat": {
+          "type": "number",
+          "default": 500,
+          "minimum": 50,
+          "maximum": 2000,
+          "description": "Maximum number of cached messages for each chat in sidebar."
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "ncat.bossKey",
+        "key": "ctrl+q",
+        "mac": "cmd+;"
+      }
+    ]
+  },
+  "scripts": {
+    "smoke": "node scripts/napcat-smoke.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "check": "node scripts/doctor.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "ws": "^8.18.3"
+  }
+}
