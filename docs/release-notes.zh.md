@@ -1,9 +1,10 @@
-# QQ Copilot Connector 0.0.2
+# QQ Copilot Connector 0.0.3
 
-这个版本主要完成命名迁移、激活修复和图标更新，适合作为新的可安装发布版本。
+这个版本主要完成发布者切换、命名迁移修复和图标更新，适合作为新的可安装发布版本。
 
 ## 本次重点修复
 
+- 发布者切换到 `mumuzi2023`，并同步调整 Marketplace 校验与扩展内部 ID 前缀。
 - 全面迁移扩展公开命名到 `qqConnector.*`。
 - 修复命令激活时机，避免 `qqConnector.connect` 找不到。
 - 修复 runtime 缓存常量遗漏导致的扩展激活失败与顶部持续转圈。

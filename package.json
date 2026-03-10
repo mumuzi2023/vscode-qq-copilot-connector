@@ -2,7 +2,7 @@
   "name": "vscode-qq-copilot-connector",
   "displayName": "QQ Copilot Connector",
   "description": "VS Code QQ Connector with QQBot MCP tools, Copilot integration, and an optional local QQ backend mode.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "main": "./dist/extension.cjs",
@@ -20,15 +20,15 @@
     "onCommand:qqConnector.openQQAssistantChat",
     "onCommand:qqConnector.openAnotherDebugWindow",
     "onCommand:qqConnector.showLogs",
-    "onChatParticipant:mumu2023.vscode-qq-copilot-connector.qq"
+    "onChatParticipant:mumuzi2023.vscode-qq-copilot-connector.qq"
   ],
   "engines": {
     "vscode": "^1.85.0"
   },
-  "publisher": "mumu2023",
+  "publisher": "mumuzi2023",
   "author": {
-    "name": "mumu2023",
-    "url": "https://marketplace.visualstudio.com/manage/publishers/mumu2023"
+    "name": "mumuzi2023",
+    "url": "https://marketplace.visualstudio.com/manage/publishers/mumuzi2023"
   },
   "repository": {
     "type": "git",
@@ -91,13 +91,13 @@
     ],
     "mcpServerDefinitionProviders": [
       {
-        "id": "mumu2023.vscode-qq-copilot-connector.qqbot-mcp",
+        "id": "mumuzi2023.vscode-qq-copilot-connector.qqbot-mcp",
         "label": "QQBot MCP"
       }
     ],
     "chatParticipants": [
       {
-        "id": "mumu2023.vscode-qq-copilot-connector.qq",
+        "id": "mumuzi2023.vscode-qq-copilot-connector.qq",
         "name": "qq",
         "fullName": "QQ Assistant",
         "description": "A QQ-aware assistant backed by VS Code language models, tools, and the local bridge.",

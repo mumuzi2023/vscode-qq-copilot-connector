@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 
-const CHAT_PARTICIPANT_ID = 'mumu2023.vscode-qq-copilot-connector.qq';
+const CHAT_PARTICIPANT_ID = 'mumuzi2023.vscode-qq-copilot-connector.qq';
 
 function registerChatParticipant(context, orchestrator) {
   if (!vscode.chat || typeof vscode.chat.createChatParticipant !== 'function') {

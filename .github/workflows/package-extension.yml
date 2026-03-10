@@ -103,7 +103,7 @@ jobs:
 
       - name: Verify Marketplace PAT
         if: env.VSCE_PAT != ''
-        run: npx @vscode/vsce verify-pat mumu2023 --pat "$VSCE_PAT"
+        run: npx @vscode/vsce verify-pat mumuzi2023 --pat "$VSCE_PAT"
 
       - name: Publish to VS Code Marketplace
         if: env.VSCE_PAT != ''

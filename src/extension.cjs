@@ -12,7 +12,7 @@ const { WindowRouter } = require('./chat/window-router.cjs');
 const { askForTarget, askForMessage, ensureConnectedWithPrompt } = require('./commands/prompt-utils.cjs');
 const { LOG_DIR_NAME, SIDEBAR_VIEW_ID, commandId, getConfigValue } = require('./core/qq-connector.cjs');
 
-const QQBOT_MCP_PROVIDER_ID = 'mumu2023.vscode-qq-copilot-connector.qqbot-mcp';
+const QQBOT_MCP_PROVIDER_ID = 'mumuzi2023.vscode-qq-copilot-connector.qqbot-mcp';
 const QQBOT_MCP_SCRIPT_PATH = ['dist', 'mcp', 'qqbot-mcp-server.cjs'];
 const QQ_ASSISTANT_HANDLE = '@qq';
 
