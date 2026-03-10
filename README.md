@@ -55,6 +55,10 @@ npm install
 
 Open this folder in VS Code and start an Extension Development Host.
 
+### Release
+
+See [docs/release.md](./docs/release.md) for versioning, VSIX packaging, GitHub Release, and VS Code Marketplace publishing.
+
 ## Notes
 
 - QQBot mode depends on a valid AppID and ClientSecret.

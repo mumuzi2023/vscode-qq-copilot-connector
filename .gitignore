@@ -24,5 +24,6 @@ local/ncat/*
 !local/ncat/.gitkeep
 
 # VS Code extension package artifacts
+dist/
 *.vsix
 *.vsix.tmp

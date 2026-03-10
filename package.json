@@ -2,10 +2,14 @@
   "name": "vscode-qq-copilot-connector",
   "displayName": "QQ Copilot Connector",
   "description": "VS Code QQ connector with QQBot MCP tools, Copilot integration, and an optional local QQ backend mode.",
-  "version": "1.0.2",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/extension.cjs",
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished",
+    "onChatParticipant:tudou0133.vscode-qq-copilot-connector.qq"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -57,6 +61,18 @@
         "title": "QQ Connector: Authorize AI Access"
       },
       {
+        "command": "ncat.redirectToVsCodeChat",
+        "title": "QQ Connector: Redirect Message To VS Code Chat"
+      },
+      {
+        "command": "ncat.openQQAssistantChat",
+        "title": "QQ Connector: Open QQ Assistant Chat"
+      },
+      {
+        "command": "ncat.openAnotherDebugWindow",
+        "title": "QQ Connector: Open Another Extension Development Host"
+      },
+      {
         "command": "ncat.showLogs",
         "title": "QQ Connector: Show Logs"
       }
@@ -65,6 +81,15 @@
       {
         "id": "tudou0133.ncat-vscode-qq.qqbot-mcp",
         "label": "QQBot MCP"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "tudou0133.vscode-qq-copilot-connector.qq",
+        "name": "qq",
+        "fullName": "QQ Assistant",
+        "description": "A QQ-aware assistant backed by VS Code language models, tools, and the local bridge.",
+        "isSticky": true
       }
     ],
     "viewsContainers": {
@@ -89,128 +114,47 @@
     "configuration": {
       "title": "QQ Copilot Connector",
       "properties": {
-        "ncat.backendMode": {
-          "type": "string",
-          "enum": [
-            "ncat",
-            "qqbot"
-          ],
-          "default": "ncat",
-          "description": "Backend mode. 'ncat' uses the local OneBot-compatible backend, 'qqbot' uses the official QQ Bot API. Reload window after changing this value."
-        },
-        "ncat.wsUrl": {
-          "type": "string",
-          "default": "ws://127.0.0.1:3001",
-          "description": "Local OneBot-compatible backend WebSocket server URL."
-        },
-        "ncat.rootDir": {
-          "type": "string",
-          "default": "",
-          "description": "Local backend root directory. Supports absolute path or workspace-relative path."
-        },
-        "ncat.quickLoginUin": {
-          "type": "string",
-          "default": "",
-          "description": "Optional QQ UIN for quick login on Windows. If set, extension starts NapCatWinBootMain.exe <uin> first."
-        },
-        "ncat.token": {
-          "type": "string",
-          "default": "",
-          "description": "Local OneBot-compatible backend access token."
-        },
-        "ncat.tokenFile": {
-          "type": "string",
-          "default": "",
-          "description": "Optional token file path. If set, token auto-read tries this file first."
-        },
-        "ncat.tokenEnvVar": {
-          "type": "string",
-          "default": "NCAT_TOKEN",
-          "description": "Environment variable name used when ncat.token is empty."
-        },
         "ncat.qqbotAppId": {
           "type": "string",
           "default": "",
-          "description": "QQBot official AppID used in qqbot backend mode."
+          "description": "QQBot official AppID. The extension uses QQBot mode by default."
         },
         "ncat.qqbotClientSecret": {
           "type": "string",
           "default": "",
-          "description": "QQBot official ClientSecret used in qqbot backend mode."
+          "description": "QQBot official ClientSecret."
         },
         "ncat.qqbotBotName": {
           "type": "string",
           "default": "QQBot",
-          "description": "Display name shown in the sidebar when using qqbot backend mode."
+          "description": "Display name shown in the sidebar for the QQ assistant."
         },
         "ncat.qqbotMarkdownSupport": {
           "type": "boolean",
           "default": false,
-          "description": "Enable official QQBot markdown message mode for text sending."
-        },
-        "ncat.qqbotPrimaryChatType": {
-          "type": "string",
-          "enum": [
-            "",
-            "private",
-            "group"
-          ],
-          "default": "",
-          "description": "Default QQBot conversation type used by MCP send tools when no targetId is provided."
-        },
-        "ncat.qqbotPrimaryChatId": {
-          "type": "string",
-          "default": "",
-          "description": "Default QQBot targetId used by MCP send tools when no targetId is provided."
+          "description": "Use official QQBot markdown messages when sending text."
         },
         "ncat.qqbotAutoReply": {
           "type": "boolean",
-          "default": false,
-          "description": "Automatically send AI replies for incoming QQBot messages."
+          "default": true,
+          "description": "Automatically route incoming QQ messages through the QQ assistant and send the reply back to QQ."
         },
         "ncat.qqbotUseTools": {
           "type": "boolean",
           "default": true,
-          "description": "Allow the language model to use available VS Code/MCP tools when auto-replying in qqbot mode."
+          "description": "Allow the assistant to use available VS Code and MCP tools for QQ requests."
         },
-        "ncat.qqbotModelVendor": {
-          "type": "string",
-          "default": "copilot",
-          "description": "Preferred language model vendor for qqbot auto-reply. Leave empty to use any available model."
-        },
-        "ncat.qqbotModelFamily": {
-          "type": "string",
-          "default": "",
-          "description": "Optional preferred language model family for qqbot auto-reply."
-        },
-        "ncat.qqbotSystemPrompt": {
-          "type": "string",
-          "default": "你是在 VS Code 中运行的 QQBot 助手。回答要直接、简洁、准确。必要时可以调用可用工具。",
-          "description": "System prompt prefix used for qqbot auto-reply."
+        "ncat.qqbotRemoteAllowNativeUiTools": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow QQ-triggered requests to use native VS Code confirmation UIs. Keep this off unless you explicitly want local popups."
         },
         "ncat.qqbotMaxToolRounds": {
           "type": "number",
           "default": 4,
           "minimum": 1,
           "maximum": 8,
-          "description": "Maximum number of tool-calling rounds per qqbot auto-reply request."
-        },
-        "ncat.autoConnect": {
-          "type": "boolean",
-          "default": true,
-          "description": "Auto connect when VS Code starts."
-        },
-        "ncat.autoReconnect": {
-          "type": "boolean",
-          "default": true,
-          "description": "Reconnect automatically after unexpected disconnection."
-        },
-        "ncat.maxMessagesPerChat": {
-          "type": "number",
-          "default": 500,
-          "minimum": 50,
-          "maximum": 2000,
-          "description": "Maximum number of cached messages for each chat in sidebar."
+          "description": "Maximum number of tool-calling rounds for a single QQ request."
         }
       }
     },
@@ -223,12 +167,20 @@
     ]
   },
   "scripts": {
+    "bundle": "node scripts/build.mjs",
     "smoke": "node scripts/napcat-smoke.mjs",
     "doctor": "node scripts/doctor.mjs",
-    "check": "node scripts/doctor.mjs"
+    "check": "node scripts/doctor.mjs",
+    "vscode:prepublish": "npm run bundle",
+    "package:vsix": "vsce package -o qq-copilot-connector.vsix",
+    "publish:vsix": "vsce publish --packagePath qq-copilot-connector.vsix"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10",
+    "@vscode/vsce": "^3.7.1"
   }
 }

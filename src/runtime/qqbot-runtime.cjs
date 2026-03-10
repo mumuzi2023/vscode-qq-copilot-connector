@@ -4,6 +4,7 @@ const vscode = require('vscode');
 const WebSocket = require('ws');
 const { getPrivateAvatarUrl, getGroupAvatarUrl } = require('../core/avatar-utils.cjs');
 const { clipText, toBrief } = require('../core/message-utils.cjs');
+const { ChatOrchestrator } = require('../chat/chat-orchestrator.cjs');
 const { persistCacheNow, restoreCachedSessions } = require('./cache-store.cjs');
 const { normalizeOutgoingRequest } = require('./outgoing-message.cjs');
 
@@ -20,6 +21,20 @@ const tokenInflight = new Map();
 
 function clipForLog(value, max = 240) {
   return clipText(String(value || '').replace(/\s+/g, ' ').trim(), max);
+}
+
+function normalizeApprovalDecision(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) {
+    return '';
+  }
+  if (['y', 'yes', 'ok', '确认', '同意', '继续', '允许'].includes(text)) {
+    return 'approve';
+  }
+  if (['n', 'no', 'cancel', '取消', '拒绝', '停止', '不'].includes(text)) {
+    return 'deny';
+  }
+  return '';
 }
 
 function parseIdText(value) {
@@ -229,6 +244,11 @@ class QQBotRuntime {
     this.groupMembersLoading = new Map();
     this.pendingRequests = new Map();
     this.autoReplyChains = new Map();
+    this.officialMessageSeqByChat = new Map();
+    this.chatOrchestrator = new ChatOrchestrator({
+      getAgentConfig: () => this.getAgentConfig(),
+      log: (message) => this.log(message),
+    });
 
     this.output = vscode.window.createOutputChannel('QQ Copilot Connector');
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -290,7 +310,7 @@ class QQBotRuntime {
   getAgentConfig() {
     const config = vscode.workspace.getConfiguration();
     return {
-      autoReply: config.get('ncat.qqbotAutoReply', false) === true,
+      autoReply: config.get('ncat.qqbotAutoReply', true) !== false,
       useTools: config.get('ncat.qqbotUseTools', true) !== false,
       modelVendor: String(config.get('ncat.qqbotModelVendor', 'copilot') || '').trim(),
       modelFamily: String(config.get('ncat.qqbotModelFamily', '') || '').trim(),
@@ -302,6 +322,12 @@ class QQBotRuntime {
       ).trim(),
       maxToolRounds: Math.max(1, Math.min(8, Number(config.get('ncat.qqbotMaxToolRounds', 4) || 4))),
     };
+  }
+
+  setChatOrchestrator(orchestrator) {
+    if (orchestrator && typeof orchestrator.runModelWithTools === 'function') {
+      this.chatOrchestrator = orchestrator;
+    }
   }
 
   getAnonymizedTargetLabel(type, targetId) {
@@ -709,117 +735,20 @@ class QQBotRuntime {
   }
 
   async getLanguageModel() {
-    const agent = this.getAgentConfig();
-    const selector = {};
-    if (agent.modelVendor) {
-      selector.vendor = agent.modelVendor;
-    }
-    if (agent.modelFamily) {
-      selector.family = agent.modelFamily;
-    }
-    let models = [];
     try {
-      models = await vscode.lm.selectChatModels(Object.keys(selector).length > 0 ? selector : undefined);
+      return await this.chatOrchestrator.getLanguageModel();
     } catch (error) {
       this.log(`selectChatModels failed: ${error?.message || String(error)}`);
       throw error;
     }
-    if (!Array.isArray(models) || models.length === 0) {
-      models = await vscode.lm.selectChatModels();
-    }
-    if (!Array.isArray(models) || models.length === 0) {
-      throw new Error('No language model is available in VS Code.');
-    }
-    return models[0];
   }
 
   async prepareLanguageModelAccess() {
-    try {
-      const model = await this.getLanguageModel();
-      const response = await model.sendRequest([
-        vscode.LanguageModelChatMessage.User('Reply with OK only.')
-      ]);
-      let text = '';
-      for await (const chunk of response.text) {
-        text += String(chunk || '');
-      }
-      this.log(`AI access prepared with model=${model.name || model.id || 'unknown'}, probe=${clipForLog(text, 40)}`);
-      return {
-        ok: true,
-        modelName: model.name || model.id || 'unknown',
-      };
-    } catch (error) {
-      const reason = error?.message || String(error);
-      this.log(`AI access prepare failed: ${reason}`);
-      return {
-        ok: false,
-        reason,
-      };
-    }
+    return this.chatOrchestrator.prepareLanguageModelAccess();
   }
 
   async runModelWithTools(messages) {
-    const agent = this.getAgentConfig();
-    const model = await this.getLanguageModel();
-    const availableTools = agent.useTools ? Array.from(vscode.lm.tools || []) : [];
-    const maxRounds = agent.maxToolRounds;
-    const workingMessages = Array.isArray(messages) ? [...messages] : [];
-    let finalText = '';
-
-    for (let round = 0; round < maxRounds; round += 1) {
-      const response = await model.sendRequest(workingMessages, {
-        tools: availableTools,
-        toolMode: vscode.LanguageModelChatToolMode.Auto,
-      });
-
-      const toolCalls = [];
-      let roundText = '';
-      for await (const chunk of response.stream) {
-        if (chunk instanceof vscode.LanguageModelTextPart) {
-          roundText += String(chunk.value || '');
-          continue;
-        }
-        if (chunk instanceof vscode.LanguageModelToolCallPart) {
-          toolCalls.push(chunk);
-        }
-      }
-
-      if (toolCalls.length === 0) {
-        finalText += roundText;
-        break;
-      }
-
-      if (roundText) {
-        finalText += roundText;
-      }
-
-      const resultParts = [];
-      for (const call of toolCalls) {
-        this.log(`MCP tool requested: name=${call.name}, input=${clipForLog(JSON.stringify(call.input || {}), 400)}`);
-        try {
-          const result = await vscode.lm.invokeTool(call.name, {
-            input: call.input || {},
-            toolInvocationToken: undefined,
-          });
-          resultParts.push(new vscode.LanguageModelToolResultPart(call.callId, result.content || []));
-          this.log(`MCP tool finished: name=${call.name}, parts=${Array.isArray(result.content) ? result.content.length : 0}`);
-        } catch (error) {
-          const failureText = `Tool ${call.name} failed: ${error?.message || String(error)}`;
-          resultParts.push(
-            new vscode.LanguageModelToolResultPart(call.callId, [new vscode.LanguageModelTextPart(failureText)])
-          );
-          this.log(`MCP tool failed: name=${call.name}, reason=${error?.message || String(error)}`);
-        }
-      }
-
-      workingMessages.push(vscode.LanguageModelChatMessage.Assistant(toolCalls));
-      workingMessages.push(vscode.LanguageModelChatMessage.User(resultParts));
-    }
-
-    return {
-      text: String(finalText || '').trim(),
-      modelName: model.name || model.id || 'unknown',
-    };
+    return this.chatOrchestrator.runModelWithTools(messages);
   }
 
   queueAutoReply(chatId, task) {
@@ -835,6 +764,114 @@ class QQBotRuntime {
         this.autoReplyChains.delete(chatId);
       }
     }));
+  }
+
+  async sendTextReplyByType(type, targetId, text, replyToMessageId = '') {
+    if (type === 'group') {
+      return this.sendGroupMessage(targetId, {
+        text,
+        replyToMessageId,
+        images: [],
+      });
+    }
+    return this.sendPrivateMessage(targetId, {
+      text,
+      replyToMessageId,
+      images: [],
+    });
+  }
+
+  nextOfficialMessageSeq(chatType, targetId) {
+    const key = `${String(chatType || '').trim()}:${String(targetId || '').trim()}`;
+    const current = Number(this.officialMessageSeqByChat.get(key) || 0);
+    const next = current >= 1000000 ? 1 : current + 1;
+    this.officialMessageSeqByChat.set(key, next);
+    return next;
+  }
+
+  buildApprovalPrompt(approval) {
+    const title = String(approval?.title || '').trim();
+    const message = String(approval?.message || '').trim();
+    const invocation = String(approval?.invocationMessage || '').trim();
+    return [
+      title || `工具 ${approval?.toolName || ''} 请求执行`,
+      message,
+      invocation ? `执行说明: ${invocation}` : '',
+      '回复 y 确认执行，回复 n 取消执行。',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  async handlePendingApprovalResponse(params) {
+    const pending = this.pendingRequests.get(params.chatId);
+    if (!pending) {
+      return false;
+    }
+
+    if (pending.senderId && params.senderId && pending.senderId !== params.senderId) {
+      return false;
+    }
+
+    const plainText = this.extractPlainTextFromSegments(params.segments);
+    const decision = normalizeApprovalDecision(plainText);
+    if (!decision) {
+      await this.sendTextReplyByType(
+        params.type,
+        params.targetId,
+        `当前有待确认操作: ${pending.approval?.toolName || 'unknown'}。请回复 y 或 n。`,
+        params.rawMessageId
+      );
+      return true;
+    }
+
+    this.pendingRequests.delete(params.chatId);
+    this.queueAutoReply(params.chatId, async () => {
+      try {
+        const approved = decision === 'approve';
+        await this.sendTextReplyByType(
+          params.type,
+          params.targetId,
+          approved
+            ? `已确认，开始执行 ${pending.approval?.toolName || 'tool'}。`
+            : `已取消 ${pending.approval?.toolName || 'tool'}。`,
+          params.rawMessageId
+        );
+
+        const result = await this.chatOrchestrator.continueRemoteApproval(pending.state, approved);
+        if (result.status === 'awaiting-approval') {
+          this.pendingRequests.set(params.chatId, {
+            chatId: params.chatId,
+            senderId: pending.senderId,
+            approval: result.approval,
+            state: result.state,
+            targetId: params.targetId,
+            type: params.type,
+          });
+          await this.sendTextReplyByType(
+            params.type,
+            params.targetId,
+            this.buildApprovalPrompt(result.approval),
+            params.rawMessageId
+          );
+          return;
+        }
+
+        const replyText = String(result.text || '').trim();
+        if (replyText) {
+          await this.sendTextReplyByType(params.type, params.targetId, replyText, params.rawMessageId);
+          this.log(`Auto-reply sent after approval: chatId=${params.chatId}, target=${params.targetId}`);
+        }
+      } catch (error) {
+        this.log(`Pending approval resolution failed: chatId=${params.chatId}, reason=${error?.message || String(error)}`);
+        await this.sendTextReplyByType(
+          params.type,
+          params.targetId,
+          `执行失败: ${error?.message || String(error)}`,
+          params.rawMessageId
+        );
+      }
+    });
+
+    return true;
   }
 
   scheduleAutoReply(params) {
@@ -862,45 +899,36 @@ class QQBotRuntime {
       return;
     }
 
-    const agent = this.getAgentConfig();
-    const transcript = this.buildTranscriptForChat(chatId, rawMessageId);
-    const prompt = [
-      agent.systemPrompt,
-      '',
-      `会话类型: ${type === 'group' ? '群聊' : '私聊'}`,
-      `目标ID: ${targetId}`,
-      `发送者: ${senderName || senderId || 'unknown'} (${senderId || 'unknown'})`,
-      transcript ? `最近上下文:\n${transcript}` : '最近上下文: (none)',
-      '',
-      `用户最新消息:\n${plainText}`,
-      '',
-      '请直接给出要发送回 QQ 的最终回复文本。不要输出解释、前缀或思考过程。',
-    ].join('\n');
-
     try {
-      const result = await this.runModelWithTools([
-        vscode.LanguageModelChatMessage.User(prompt),
-      ]);
+      const result = await this.chatOrchestrator.handleRemoteRequest({
+        source: 'qqbot',
+        sessionKey: chatId,
+        message: plainText,
+        attachments: [],
+      });
       const replyText = String(result.text || '').trim();
-      this.log(`Model reply generated: model=${result.modelName}, chatId=${chatId}, text=${clipForLog(replyText, 400)}`);
+      this.log(`Model reply generated: model=${result.modelName}, chatId=${chatId}, status=${result.status || 'completed'}, text=${clipForLog(replyText, 400)}`);
+
+      if (result.status === 'awaiting-approval' && result.approval && result.state) {
+        this.pendingRequests.set(chatId, {
+          chatId,
+          senderId,
+          approval: result.approval,
+          state: result.state,
+          targetId,
+          type,
+        });
+        await this.sendTextReplyByType(type, targetId, this.buildApprovalPrompt(result.approval), rawMessageId);
+        this.log(`Auto-reply waiting for approval: chatId=${chatId}, tool=${result.approval.toolName}`);
+        return;
+      }
+
       if (!replyText) {
         this.log(`Auto-reply skipped: chatId=${chatId}, reason=empty-model-output`);
         return;
       }
 
-      if (type === 'group') {
-        await this.sendGroupMessage(targetId, {
-          text: replyText,
-          replyToMessageId: rawMessageId,
-          images: [],
-        });
-      } else {
-        await this.sendPrivateMessage(targetId, {
-          text: replyText,
-          replyToMessageId: rawMessageId,
-          images: [],
-        });
-      }
+      await this.sendTextReplyByType(type, targetId, replyText, rawMessageId);
       this.log(`Auto-reply sent: chatId=${chatId}, target=${targetId}`);
     } catch (error) {
       this.log(`Auto-reply failed: chatId=${chatId}, reason=${error?.message || String(error)}`);
@@ -1426,7 +1454,7 @@ class QQBotRuntime {
     }
   }
 
-  ingestOfficialEvent(type, event) {
+  async ingestOfficialEvent(type, event) {
     if (!event || typeof event !== 'object') {
       return;
     }
@@ -1454,6 +1482,17 @@ class QQBotRuntime {
         rawMessageId: String(event.id || ''),
       });
       if (inserted) {
+        const approvalHandled = await this.handlePendingApprovalResponse({
+          chatId: `private:${targetId}`,
+          type: 'private',
+          targetId,
+          rawMessageId: String(event.id || ''),
+          senderId: targetId,
+          segments,
+        });
+        if (approvalHandled) {
+          return;
+        }
         this.scheduleAutoReply({
           chatId: `private:${targetId}`,
           type: 'private',
@@ -1492,6 +1531,17 @@ class QQBotRuntime {
       rawMessageId: String(event.id || ''),
     });
     if (inserted) {
+      const approvalHandled = await this.handlePendingApprovalResponse({
+        chatId: `group:${targetId}`,
+        type: 'group',
+        targetId,
+        rawMessageId: String(event.id || ''),
+        senderId,
+        segments,
+      });
+      if (approvalHandled) {
+        return;
+      }
       this.scheduleAutoReply({
         chatId: `group:${targetId}`,
         type: 'group',
@@ -1508,9 +1558,10 @@ class QQBotRuntime {
   async sendOfficialText(chatType, targetId, text, replyToMessageId = '') {
     const qqbot = this.getQQBotConfig();
     const token = await getAccessToken(qqbot.appId, qqbot.clientSecret);
+    const msgSeq = this.nextOfficialMessageSeq(chatType, targetId);
     const body = qqbot.markdownSupport
-      ? { markdown: { content: text }, msg_type: 2, msg_seq: 1 }
-      : { content: text, msg_type: 0, msg_seq: 1 };
+      ? { markdown: { content: text }, msg_type: 2, msg_seq: msgSeq }
+      : { content: text, msg_type: 0, msg_seq: msgSeq };
     if (replyToMessageId) {
       body.msg_id = replyToMessageId;
     }
@@ -1535,13 +1586,14 @@ class QQBotRuntime {
       file_data: payload.base64,
       srv_send_msg: false,
     });
+    const msgSeq = this.nextOfficialMessageSeq(chatType, targetId);
     const sendPath = chatType === 'group'
       ? `/v2/groups/${targetId}/messages`
       : `/v2/users/${targetId}/messages`;
     return apiRequest(token, 'POST', sendPath, {
       msg_type: 7,
       media: { file_info: uploadResp.file_info },
-      msg_seq: 1,
+      msg_seq: msgSeq,
     });
   }
 

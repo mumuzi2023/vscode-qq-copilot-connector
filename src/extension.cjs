@@ -1,12 +1,76 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const vscode = require('vscode');
 const { NCatSidebarProvider } = require('./sidebar/sidebar-provider.cjs');
 const { NCatRuntime } = require('./runtime/ncat-runtime.cjs');
 const { QQBotRuntime } = require('./runtime/qqbot-runtime.cjs');
+const { ChatBridge } = require('./chat/chat-bridge.cjs');
+const { ChatOrchestrator } = require('./chat/chat-orchestrator.cjs');
+const { CHAT_PARTICIPANT_ID, registerChatParticipant } = require('./chat/chat-participant.cjs');
+const { WindowRouter } = require('./chat/window-router.cjs');
 const { askForTarget, askForMessage, ensureConnectedWithPrompt } = require('./commands/prompt-utils.cjs');
 
 const QQBOT_MCP_PROVIDER_ID = 'tudou0133.ncat-vscode-qq.qqbot-mcp';
+const QQBOT_MCP_SCRIPT_PATH = ['dist', 'mcp', 'qqbot-mcp-server.cjs'];
+const QQ_ASSISTANT_HANDLE = '@qq';
+
+function quoteCommandArg(value) {
+  const text = String(value || '');
+  if (!text) {
+    return '""';
+  }
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function readProductMetadata() {
+  try {
+    const productFile = path.join(vscode.env.appRoot, 'product.json');
+    if (!fs.existsSync(productFile)) {
+      return {};
+    }
+    return JSON.parse(fs.readFileSync(productFile, 'utf8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function resolveVsCodeLauncher() {
+  const appRoot = String(vscode.env.appRoot || '').trim();
+  const product = readProductMetadata();
+  const installRoot = appRoot ? path.resolve(appRoot, '..', '..') : '';
+  const applicationName = String(product.applicationName || 'code').trim() || 'code';
+  const nameShort = String(product.nameShort || 'Code').trim() || 'Code';
+
+  if (process.platform === 'win32') {
+    const exeCandidates = [
+      path.join(installRoot, `${nameShort}.exe`),
+      path.join(installRoot, 'Code.exe'),
+      path.join(installRoot, 'Code - Insiders.exe'),
+    ];
+    for (const candidate of exeCandidates) {
+      if (candidate && fs.existsSync(candidate)) {
+        return {
+          command: candidate,
+          useShell: false,
+        };
+      }
+    }
+
+    const cliCandidate = path.join(installRoot, 'bin', `${applicationName}.cmd`);
+    if (cliCandidate && fs.existsSync(cliCandidate)) {
+      return {
+        command: cliCandidate,
+        useShell: true,
+      };
+    }
+  }
+
+  return {
+    command: process.execPath,
+    useShell: false,
+  };
+}
 
 /** @type {NCatRuntime | undefined} */
 let runtime;
@@ -14,9 +78,91 @@ let runtime;
 /** @type {NCatSidebarProvider | undefined} */
 let sidebarProvider;
 
+/** @type {ChatBridge | undefined} */
+let chatBridge;
+
+/** @type {ChatOrchestrator | undefined} */
+let chatOrchestrator;
+
+/** @type {WindowRouter | undefined} */
+let windowRouter;
+
+async function pickFolderForNewWindow() {
+  const folders = Array.isArray(vscode.workspace.workspaceFolders) ? vscode.workspace.workspaceFolders : [];
+  if (folders.length === 0) {
+    const entered = await vscode.window.showInputBox({
+      prompt: 'Folder path to open in a new debug window',
+      placeHolder: 'D:\\code\\qqbot\\some-workspace',
+      ignoreFocusOut: true,
+    });
+    const fsPath = String(entered || '').trim();
+    return fsPath ? vscode.Uri.file(fsPath) : undefined;
+  }
+
+  const picks = folders.map((folder, index) => ({
+    label: `${index + 1}. ${folder.name}`,
+    description: folder.uri.fsPath,
+    uri: folder.uri,
+  }));
+  picks.push({
+    label: 'Custom path',
+    description: 'Enter another folder path',
+    uri: null,
+  });
+
+  const choice = await vscode.window.showQuickPick(picks, {
+    title: 'Open another debug window',
+    placeHolder: 'Choose the folder to open in a new window',
+    ignoreFocusOut: true,
+  });
+  if (!choice) {
+    return undefined;
+  }
+  if (choice.uri) {
+    return choice.uri;
+  }
+
+  const entered = await vscode.window.showInputBox({
+    prompt: 'Folder path to open in a new debug window',
+    placeHolder: 'D:\\code\\qqbot\\some-workspace',
+    ignoreFocusOut: true,
+  });
+  const fsPath = String(entered || '').trim();
+  return fsPath ? vscode.Uri.file(fsPath) : undefined;
+}
+
+async function openAnotherExtensionDevelopmentHost(context, targetUri) {
+  const launcher = resolveVsCodeLauncher();
+  const args = [
+    '--new-window',
+    targetUri.fsPath,
+    `--extensionDevelopmentPath=${context.extensionPath}`,
+  ];
+
+  try {
+    const child = launcher.useShell
+      ? spawn('cmd.exe', ['/d', '/s', '/c', `${quoteCommandArg(launcher.command)} ${args.map(quoteCommandArg).join(' ')}`], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false,
+        })
+      : spawn(launcher.command, args, {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false,
+        });
+    child.unref();
+    runtime?.log?.(`additional extension development host launch requested: launcher=${launcher.command}, target=${targetUri.fsPath}`);
+    return true;
+  } catch (error) {
+    runtime?.log?.(`failed to open additional extension development host: ${error?.message || String(error)}`);
+    return false;
+  }
+}
+
 function createRuntime(context) {
   const config = vscode.workspace.getConfiguration();
-  const mode = String(config.get('ncat.backendMode', 'ncat') || 'ncat').trim().toLowerCase();
+  const mode = String(config.get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
   if (mode === 'qqbot') {
     return new QQBotRuntime(context);
   }
@@ -41,7 +187,7 @@ function registerQQBotMcpProvider(context) {
       const markdownSupport = Boolean(config.get('ncat.qqbotMarkdownSupport', false));
       const primaryChatType = String(config.get('ncat.qqbotPrimaryChatType', '') || '').trim().toLowerCase();
       const primaryChatId = String(config.get('ncat.qqbotPrimaryChatId', '') || '').trim();
-      const mcpScript = path.join(context.extensionPath, 'src', 'mcp', 'qqbot-mcp-server.cjs');
+      const mcpScript = path.join(context.extensionPath, ...QQBOT_MCP_SCRIPT_PATH);
       const logDir = context.globalStorageUri?.fsPath || context.logUri?.fsPath || path.join(context.extensionPath, '.ncat-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });
@@ -79,8 +225,31 @@ function registerQQBotMcpProvider(context) {
 
 function activate(context) {
   runtime = createRuntime(context);
+  chatOrchestrator = new ChatOrchestrator({
+    getAgentConfig: () => (typeof runtime?.getAgentConfig === 'function'
+      ? runtime.getAgentConfig()
+      : {
+          useTools: true,
+          modelVendor: 'copilot',
+          modelFamily: '',
+          systemPrompt: '你是在 VS Code 中运行的 QQ 助手。回答要直接、简洁、准确。必要时可以调用可用工具。',
+          maxToolRounds: 4,
+        }),
+    log: (message) => runtime?.log?.(message),
+  });
+  windowRouter = new WindowRouter(context, () => chatOrchestrator, {
+    log: (message) => runtime?.log?.(message),
+  });
+  chatOrchestrator.setWindowRouter(windowRouter);
+  windowRouter.start();
   sidebarProvider = new NCatSidebarProvider(runtime);
+  chatBridge = new ChatBridge(context, () => runtime, () => chatOrchestrator);
   const qqbotMcpProvider = registerQQBotMcpProvider(context);
+  const chatParticipant = registerChatParticipant(context, chatOrchestrator);
+
+  if (runtime && typeof runtime.setChatOrchestrator === 'function') {
+    runtime.setChatOrchestrator(chatOrchestrator);
+  }
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('ncat.sidebarView', sidebarProvider, {
@@ -123,7 +292,7 @@ function activate(context) {
       return;
     }
 
-    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'ncat') || 'ncat').trim().toLowerCase();
+    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
     const digitsOnly = mode !== 'qqbot';
     const userId = await askForTarget(
       mode === 'qqbot' ? 'Target QQBot user openid' : 'Target QQ number',
@@ -158,7 +327,7 @@ function activate(context) {
       return;
     }
 
-    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'ncat') || 'ncat').trim().toLowerCase();
+    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
     const digitsOnly = mode !== 'qqbot';
     const groupId = await askForTarget(
       mode === 'qqbot' ? 'Target QQBot group_openid' : 'Target Group number',
@@ -191,6 +360,62 @@ function activate(context) {
     runtime.showLogs();
   });
 
+  const redirectToVsCodeChat = vscode.commands.registerCommand('ncat.redirectToVsCodeChat', async () => {
+    const message = await askForMessage();
+    if (!message) {
+      return;
+    }
+    try {
+      const result = await chatBridge.submitRemoteRequest({
+        source: 'manual',
+        sessionKey: `manual:${Date.now()}`,
+        message,
+        mode: 'panel',
+        autoSend: true,
+      }, {
+        source: 'manual',
+      });
+      if (result?.mirrored?.ok && result.mirrored.text) {
+        runtime.log(`chat redirect mirror result: ${result.mirrored.text}`);
+      }
+      vscode.window.showInformationMessage('Message handled by the QQ assistant bridge.');
+    } catch (error) {
+      runtime.log(`chat redirect failed: ${error?.message || String(error)}`);
+      vscode.window.showErrorMessage(`Failed to redirect to VS Code Chat: ${error?.message || String(error)}`);
+    }
+  });
+
+  const openQQAssistantChat = vscode.commands.registerCommand('ncat.openQQAssistantChat', async () => {
+    const prompt = await vscode.window.showInputBox({
+      prompt: 'Optional prompt for QQ Assistant',
+      placeHolder: 'Leave empty to just open the chat with @qq selected',
+      ignoreFocusOut: true,
+    });
+    if (prompt === undefined) {
+      return;
+    }
+
+    const query = prompt.trim() ? `${QQ_ASSISTANT_HANDLE} ${prompt.trim()}` : `${QQ_ASSISTANT_HANDLE} `;
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+    } catch {
+      await vscode.commands.executeCommand('workbench.action.chat.open', { message: query, autoSend: false });
+    }
+  });
+
+  const openAnotherDebugWindow = vscode.commands.registerCommand('ncat.openAnotherDebugWindow', async () => {
+    const targetUri = await pickFolderForNewWindow();
+    if (!targetUri) {
+      return;
+    }
+    const started = await openAnotherExtensionDevelopmentHost(context, targetUri);
+    if (!started) {
+      vscode.window.showWarningMessage('Failed to start another Extension Development Host window.');
+      return;
+    }
+    vscode.window.showInformationMessage(`Launching another Extension Development Host for ${targetUri.fsPath}`);
+  });
+
   const authorizeAI = vscode.commands.registerCommand('ncat.authorizeAI', async () => {
     if (typeof runtime.prepareLanguageModelAccess !== 'function') {
       vscode.window.showInformationMessage('Current backend mode does not use QQBot AI auto-reply.');
@@ -215,9 +440,22 @@ function activate(context) {
     startBackend,
     sendPrivateMessage,
     sendGroupMessage,
+    redirectToVsCodeChat,
+    openQQAssistantChat,
+    openAnotherDebugWindow,
     authorizeAI,
     showLogs,
     qqbotMcpProvider,
+    chatParticipant,
+    windowRouter,
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (chatBridge && chatBridge.affectsConfiguration(event)) {
+        chatBridge.syncServer().catch((error) => {
+          runtime?.log(`chat bridge sync failed: ${error?.message || String(error)}`);
+        });
+      }
+    }),
+    chatBridge,
     runtime,
     sidebarProvider
   );
@@ -229,6 +467,9 @@ function activate(context) {
       reason: 'auto-connect',
     });
   }
+  chatBridge.syncServer().catch((error) => {
+    runtime?.log(`chat bridge start failed: ${error?.message || String(error)}`);
+  });
 }
 
 async function deactivate() {
@@ -241,6 +482,18 @@ async function deactivate() {
     await runtime.shutdownForDeactivate();
     runtime = undefined;
   }
+
+  if (chatBridge) {
+    chatBridge.dispose();
+    chatBridge = undefined;
+  }
+
+  if (windowRouter) {
+    windowRouter.dispose();
+    windowRouter = undefined;
+  }
+
+  chatOrchestrator = undefined;
 
 }
 

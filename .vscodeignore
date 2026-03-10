@@ -1,8 +1,11 @@
 # VCS / editor / local
 .git/**
 .gitignore
+.github/**
 .vscode/**
 local/**
+src/**
+node_modules/**
 
 # Development-only docs and scripts
 docs/**

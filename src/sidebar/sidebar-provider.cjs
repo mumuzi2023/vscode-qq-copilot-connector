@@ -1196,11 +1196,6 @@ class NCatSidebarProvider {
 
   async saveBackendSettings(msg) {
     const config = vscode.workspace.getConfiguration();
-    const previousMode = String(config.get('ncat.backendMode', 'ncat') || 'ncat').trim() || 'ncat';
-    const backendMode = String(msg?.backendMode || 'ncat').trim() || 'ncat';
-    const rootDir = String(msg?.rootDir || '').trim();
-    const tokenFile = String(msg?.tokenFile || '').trim();
-    const quickLoginUin = String(msg?.quickLoginUin || '').trim();
     const qqbotAppId = String(msg?.qqbotAppId || '').trim();
     const qqbotClientSecret = String(msg?.qqbotClientSecret || '').trim();
     const qqbotBotName = String(msg?.qqbotBotName || '').trim();
@@ -1210,24 +1205,13 @@ class NCatSidebarProvider {
     const target = hasWorkspace ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
     const targetName = hasWorkspace ? 'workspace' : 'global';
     try {
-      await config.update('ncat.backendMode', backendMode, target);
-      await config.update('ncat.rootDir', rootDir, target);
-      await config.update('ncat.tokenFile', tokenFile, target);
-      await config.update('ncat.quickLoginUin', quickLoginUin, target);
       await config.update('ncat.qqbotAppId', qqbotAppId, target);
       await config.update('ncat.qqbotClientSecret', qqbotClientSecret, target);
       await config.update('ncat.qqbotBotName', qqbotBotName, target);
       await config.update('ncat.qqbotMarkdownSupport', qqbotMarkdownSupport, target);
       this.runtime.log(
-        `Backend settings saved: target=${targetName}, mode=${backendMode}, rootDir=${rootDir || '(empty)'}, qqbotAppId=${qqbotAppId || '(empty)'}`
+        `Backend settings saved: target=${targetName}, qqbotAppId=${qqbotAppId || '(empty)'}`
       );
-      if (previousMode !== backendMode) {
-        vscode.window.showInformationMessage('后端模式已保存，需重载窗口后生效。', 'Reload Window').then((action) => {
-          if (action === 'Reload Window') {
-            vscode.commands.executeCommand('workbench.action.reloadWindow');
-          }
-        });
-      }
       return {
         ok: true,
       };

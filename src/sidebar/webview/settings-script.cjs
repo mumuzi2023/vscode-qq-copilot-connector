@@ -2,10 +2,10 @@ function renderSettingsScript() {
   return String.raw`
     function collectBackendSettingsFromInputs() {
       return {
-        backendMode: String(document.getElementById('settingBackendMode')?.value || 'ncat').trim() || 'ncat',
-        rootDir: String(document.getElementById('settingRootDir')?.value || '').trim(),
-        tokenFile: String(document.getElementById('settingTokenFile')?.value || '').trim(),
-        quickLoginUin: String(document.getElementById('settingQuickLoginUin')?.value || '').trim(),
+        backendMode: 'qqbot',
+        rootDir: '',
+        tokenFile: '',
+        quickLoginUin: '',
         qqbotAppId: String(document.getElementById('settingQqbotAppId')?.value || '').trim(),
         qqbotClientSecret: String(document.getElementById('settingQqbotClientSecret')?.value || '').trim(),
         qqbotBotName: String(document.getElementById('settingQqbotBotName')?.value || '').trim(),
@@ -69,23 +69,16 @@ function renderSettingsScript() {
       const imageToggle = document.getElementById('settingPreviewImages');
       const videoToggle = document.getElementById('settingPreviewVideos');
       const enterToggle = document.getElementById('settingEnterToSend');
-      const rootDirInput = document.getElementById('settingRootDir');
-      const tokenFileInput = document.getElementById('settingTokenFile');
-      const quickLoginUinInput = document.getElementById('settingQuickLoginUin');
-      const backendModeInput = document.getElementById('settingBackendMode');
       const qqbotAppIdInput = document.getElementById('settingQqbotAppId');
       const qqbotClientSecretInput = document.getElementById('settingQqbotClientSecret');
       const qqbotBotNameInput = document.getElementById('settingQqbotBotName');
       const qqbotMarkdownToggle = document.getElementById('settingQqbotMarkdownSupport');
-      const ncatSection = document.getElementById('settingsNcatSection');
       const qqbotSection = document.getElementById('settingsQqbotSection');
-      const napcatReleaseBtn = document.getElementById('settingOpenNapcatReleases');
-      const backendWebBtn = document.getElementById('settingOpenBackendWeb');
       const hiddenPrivateInput = document.getElementById('settingHiddenPrivateIds');
       const hiddenGroupInput = document.getElementById('settingHiddenGroupIds');
       const backendHint = document.getElementById('settingBackendHint');
       const backendToggleBtn = document.getElementById('settingBackendToggle');
-      const backendMode = String(state?.backend?.mode || 'ncat');
+      const backendMode = String(state?.backend?.mode || 'qqbot');
       const usingQqbot = backendMode === 'qqbot';
       if (overlay) {
         overlay.classList.toggle('open', !!settingsOpen);
@@ -100,18 +93,6 @@ function renderSettingsScript() {
       if (enterToggle) {
         enterToggle.checked = !!uiPrefs.enterToSend;
       }
-      if (backendModeInput && document.activeElement !== backendModeInput) {
-        backendModeInput.value = backendMode;
-      }
-      if (rootDirInput && document.activeElement !== rootDirInput) {
-        rootDirInput.value = String(state?.backend?.rootDir || '');
-      }
-      if (tokenFileInput && document.activeElement !== tokenFileInput) {
-        tokenFileInput.value = String(state?.backend?.tokenFile || '');
-      }
-      if (quickLoginUinInput && document.activeElement !== quickLoginUinInput) {
-        quickLoginUinInput.value = String(state?.backend?.quickLoginUin || '');
-      }
       if (qqbotAppIdInput && document.activeElement !== qqbotAppIdInput) {
         qqbotAppIdInput.value = String(state?.backend?.qqbotAppId || '');
       }
@@ -124,17 +105,8 @@ function renderSettingsScript() {
       if (qqbotMarkdownToggle) {
         qqbotMarkdownToggle.checked = !!state?.backend?.qqbotMarkdownSupport;
       }
-      if (ncatSection) {
-        ncatSection.hidden = usingQqbot;
-      }
       if (qqbotSection) {
-        qqbotSection.hidden = !usingQqbot;
-      }
-      if (napcatReleaseBtn) {
-        napcatReleaseBtn.hidden = usingQqbot;
-      }
-      if (backendWebBtn) {
-        backendWebBtn.hidden = usingQqbot;
+        qqbotSection.hidden = false;
       }
       if (hiddenPrivateInput && document.activeElement !== hiddenPrivateInput) {
         hiddenPrivateInput.value = String(state?.hidden?.privateText || '');
@@ -156,10 +128,10 @@ function renderSettingsScript() {
         const quickLoginUin = String(state?.backend?.quickLoginUin || '').trim();
         const quickLoginNote = usingQqbot
           ? ('AppID: ' + (String(state?.backend?.qqbotAppId || '').trim() || '未配置'))
-          : (quickLoginUin ? ('快速登录: 已配置 QQ ' + quickLoginUin) : '快速登录: 未配置（将走二维码登录）');
+          : (quickLoginUin ? ('兼容模式: 已配置 QQ ' + quickLoginUin) : '兼容模式: 当前使用本地后端');
         const base = usingQqbot
           ? ('后端状态: ' + runningLabel + '，模式: ' + modeLabel)
-          : (launchScript ? ('后端状态: ' + runningLabel + '，模式: ' + modeLabel + '，最近启动脚本: ' + launchScript) : ('后端状态: ' + runningLabel + '，模式: ' + modeLabel));
+          : (launchScript ? ('后端状态: ' + runningLabel + '，模式: ' + modeLabel + '，最近启动脚本: ' + launchScript) : ('后端状态: ' + runningLabel + '，模式: ' + modeLabel + '。如需继续使用兼容后端，请改用 settings.json 中的隐藏配置。'));
         const runtimeNote = blockedByOther
           ? (blockedOwnerPid > 0
               ? ('插件状态: 未运行（另一个窗口占用，PID ' + blockedOwnerPid + '）')
@@ -237,15 +209,8 @@ function renderSettingsScript() {
         });
       });
 
-      document.getElementById('settingOpenNapcatReleases').addEventListener('click', () => {
-        vscode.postMessage({
-          type: 'settingsAction',
-          action: 'openNapcatReleases',
-        });
-      });
-
       document.getElementById('settingBackendToggle').addEventListener('click', () => {
-        const usingQqbot = String(state?.backend?.mode || 'ncat') === 'qqbot';
+        const usingQqbot = String(state?.backend?.mode || 'qqbot') === 'qqbot';
         const backendRunning = usingQqbot
           ? (state?.connectionState === 'online' || state?.connectionState === 'connecting')
           : (!!state?.backend?.backendManagedActive || !!state?.backend?.backendProcessRunning);
@@ -262,26 +227,6 @@ function renderSettingsScript() {
         });
       });
 
-      document.getElementById('settingOpenBackendWeb').addEventListener('click', () => {
-        scheduleBackendSettingsSave(true);
-        vscode.postMessage({
-          type: 'settingsAction',
-          action: 'openBackendWeb',
-        });
-      });
-
-      document.getElementById('settingBackendMode').addEventListener('change', () => {
-        scheduleBackendSettingsSave(true);
-      });
-      document.getElementById('settingRootDir').addEventListener('input', () => {
-        scheduleBackendSettingsSave(false);
-      });
-      document.getElementById('settingTokenFile').addEventListener('input', () => {
-        scheduleBackendSettingsSave(false);
-      });
-      document.getElementById('settingQuickLoginUin').addEventListener('input', () => {
-        scheduleBackendSettingsSave(false);
-      });
       document.getElementById('settingQqbotAppId').addEventListener('input', () => {
         scheduleBackendSettingsSave(false);
       });

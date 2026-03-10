@@ -1785,20 +1785,11 @@ function renderHtml(webview) {
           <div class="settings-group-title">常用</div>
           <button id="settingOpenLogs" class="settings-action" type="button">打开日志</button>
           <button id="settingOpenExt" class="settings-action" type="button">打开扩展设置</button>
-          <button id="settingOpenNapcatReleases" class="settings-action" type="button">打开本地后端发布页面</button>
         </div>
         <div class="settings-group">
-          <div class="settings-group-title">后端模式</div>
-          <select id="settingBackendMode" class="settings-input">
-            <option value="ncat">本地 QQ / OneBot</option>
-            <option value="qqbot">QQBot 官方 API</option>
-          </select>
-          <div id="settingsNcatSection">
-            <input id="settingRootDir" class="settings-input" type="text" placeholder="本地后端根目录（兼容 ncat/NapCat）" />
-            <input id="settingTokenFile" class="settings-input" type="text" placeholder="Token 文件（可选，支持相对根目录）" />
-            <input id="settingQuickLoginUin" class="settings-input" type="text" placeholder="快速登录 QQ 号（可选，如 2580453344）" />
-          </div>
-          <div id="settingsQqbotSection" hidden>
+          <div class="settings-group-title">QQBot 连接</div>
+          <div class="settings-help">默认使用 QQBot 官方 API。本地兼容后端仍可通过隐藏配置保留，但不再作为主流程展示。</div>
+          <div id="settingsQqbotSection">
             <input id="settingQqbotAppId" class="settings-input" type="text" placeholder="QQBot AppID" />
             <input id="settingQqbotClientSecret" class="settings-input" type="password" placeholder="QQBot ClientSecret" />
             <input id="settingQqbotBotName" class="settings-input" type="text" placeholder="侧边栏显示名称（例如 QQBot）" />
@@ -1807,7 +1798,6 @@ function renderHtml(webview) {
           <div id="settingBackendHint" class="settings-help"></div>
           <div class="settings-inline-actions">
             <button id="settingBackendToggle" class="settings-action" type="button">启动后端</button>
-            <button id="settingOpenBackendWeb" class="settings-action" type="button">打开后端 WebUI</button>
           </div>
         </div>
         <div class="settings-group">
