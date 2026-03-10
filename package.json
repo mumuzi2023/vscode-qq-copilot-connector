@@ -2,7 +2,7 @@
   "name": "vscode-qq-copilot-connector",
   "displayName": "QQ Copilot Connector",
   "description": "VS Code QQ Connector with QQBot MCP tools, Copilot integration, and an optional local QQ backend mode.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "main": "./dist/extension.cjs",
