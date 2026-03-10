@@ -63,10 +63,6 @@ This extension uses the QQ official Bot API as its default connection mode, embe
 - [sliverp/qqbot](https://github.com/sliverp/qqbot)
 - [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ)
 
-## Screenshots
-
-The current README uses the preview image above. Additional screenshots can be added later.
-
 ## Notes
 
 - QQBot credentials are required for the official API workflow.
