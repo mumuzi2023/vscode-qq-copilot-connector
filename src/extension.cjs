@@ -2,14 +2,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const vscode = require('vscode');
-const { NCatSidebarProvider } = require('./sidebar/sidebar-provider.cjs');
-const { NCatRuntime } = require('./runtime/ncat-runtime.cjs');
+const { QQSidebarProvider } = require('./sidebar/sidebar-provider.cjs');
+const { LocalBackendRuntime } = require('./runtime/local-backend-runtime.cjs');
 const { QQBotRuntime } = require('./runtime/qqbot-runtime.cjs');
 const { ChatBridge } = require('./chat/chat-bridge.cjs');
 const { ChatOrchestrator } = require('./chat/chat-orchestrator.cjs');
 const { CHAT_PARTICIPANT_ID, registerChatParticipant } = require('./chat/chat-participant.cjs');
 const { WindowRouter } = require('./chat/window-router.cjs');
 const { askForTarget, askForMessage, ensureConnectedWithPrompt } = require('./commands/prompt-utils.cjs');
+const { LOG_DIR_NAME, SIDEBAR_VIEW_ID, commandId, getConfigValue } = require('./core/qq-connector.cjs');
 
 const QQBOT_MCP_PROVIDER_ID = 'mumu2023.vscode-qq-copilot-connector.qqbot-mcp';
 const QQBOT_MCP_SCRIPT_PATH = ['dist', 'mcp', 'qqbot-mcp-server.cjs'];
@@ -72,10 +73,10 @@ function resolveVsCodeLauncher() {
   };
 }
 
-/** @type {NCatRuntime | undefined} */
+/** @type {QQBotRuntime | LocalBackendRuntime | undefined} */
 let runtime;
 
-/** @type {NCatSidebarProvider | undefined} */
+/** @type {QQSidebarProvider | undefined} */
 let sidebarProvider;
 
 /** @type {ChatBridge | undefined} */
@@ -162,11 +163,11 @@ async function openAnotherExtensionDevelopmentHost(context, targetUri) {
 
 function createRuntime(context) {
   const config = vscode.workspace.getConfiguration();
-  const mode = String(config.get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
+  const mode = String(getConfigValue(config, 'backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
   if (mode === 'qqbot') {
     return new QQBotRuntime(context);
   }
-  return new NCatRuntime(context);
+  return new LocalBackendRuntime(context);
 }
 
 function registerQQBotMcpProvider(context) {
@@ -177,18 +178,18 @@ function registerQQBotMcpProvider(context) {
   const provider = {
     provideMcpServerDefinitions() {
       const config = vscode.workspace.getConfiguration();
-      const appId = String(config.get('ncat.qqbotAppId', '') || '').trim();
-      const clientSecret = String(config.get('ncat.qqbotClientSecret', '') || '').trim();
+      const appId = String(getConfigValue(config, 'qqbotAppId', '') || '').trim();
+      const clientSecret = String(getConfigValue(config, 'qqbotClientSecret', '') || '').trim();
       if (!appId || !clientSecret) {
         return [];
       }
 
-      const botName = String(config.get('ncat.qqbotBotName', 'QQBot') || 'QQBot').trim() || 'QQBot';
-      const markdownSupport = Boolean(config.get('ncat.qqbotMarkdownSupport', false));
-      const primaryChatType = String(config.get('ncat.qqbotPrimaryChatType', '') || '').trim().toLowerCase();
-      const primaryChatId = String(config.get('ncat.qqbotPrimaryChatId', '') || '').trim();
+      const botName = String(getConfigValue(config, 'qqbotBotName', 'QQBot') || 'QQBot').trim() || 'QQBot';
+      const markdownSupport = Boolean(getConfigValue(config, 'qqbotMarkdownSupport', false));
+      const primaryChatType = String(getConfigValue(config, 'qqbotPrimaryChatType', '') || '').trim().toLowerCase();
+      const primaryChatId = String(getConfigValue(config, 'qqbotPrimaryChatId', '') || '').trim();
       const mcpScript = path.join(context.extensionPath, ...QQBOT_MCP_SCRIPT_PATH);
-      const logDir = context.globalStorageUri?.fsPath || context.logUri?.fsPath || path.join(context.extensionPath, '.ncat-logs');
+      const logDir = context.globalStorageUri?.fsPath || context.logUri?.fsPath || path.join(context.extensionPath, LOG_DIR_NAME);
       try {
         fs.mkdirSync(logDir, { recursive: true });
       } catch {
@@ -242,7 +243,7 @@ function activate(context) {
   });
   chatOrchestrator.setWindowRouter(windowRouter);
   windowRouter.start();
-  sidebarProvider = new NCatSidebarProvider(runtime);
+  sidebarProvider = new QQSidebarProvider(runtime);
   chatBridge = new ChatBridge(context, () => runtime, () => chatOrchestrator);
   const qqbotMcpProvider = registerQQBotMcpProvider(context);
   const chatParticipant = registerChatParticipant(context, chatOrchestrator);
@@ -252,29 +253,29 @@ function activate(context) {
   }
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('ncat.sidebarView', sidebarProvider, {
+    vscode.window.registerWebviewViewProvider(SIDEBAR_VIEW_ID, sidebarProvider, {
       webviewOptions: { retainContextWhenHidden: true },
     })
   );
 
-  const connect = vscode.commands.registerCommand('ncat.connect', async () => {
+  const connect = vscode.commands.registerCommand(commandId('connect'), async () => {
     await runtime.startPluginRuntime({
       silent: false,
       reason: 'command-connect',
     });
   });
 
-  const disconnect = vscode.commands.registerCommand('ncat.disconnect', async () => {
+  const disconnect = vscode.commands.registerCommand(commandId('disconnect'), async () => {
     await runtime.stopPluginRuntime({
       trigger: 'command-disconnect',
     });
   });
 
-  const bossKey = vscode.commands.registerCommand('ncat.bossKey', async () => {
+  const bossKey = vscode.commands.registerCommand(commandId('bossKey'), async () => {
     await vscode.commands.executeCommand('workbench.view.explorer');
   });
 
-  const startBackend = vscode.commands.registerCommand('ncat.startBackend', async () => {
+  const startBackend = vscode.commands.registerCommand(commandId('startBackend'), async () => {
     const result = await runtime.startBackend({
       force: true,
       trigger: 'command-start-backend',
@@ -286,13 +287,13 @@ function activate(context) {
     vscode.window.setStatusBarMessage('Local backend launch requested', 2500);
   });
 
-  const sendPrivateMessage = vscode.commands.registerCommand('ncat.sendPrivateMessage', async () => {
+  const sendPrivateMessage = vscode.commands.registerCommand(commandId('sendPrivateMessage'), async () => {
     const ready = await ensureConnectedWithPrompt(runtime);
     if (!ready) {
       return;
     }
 
-    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
+    const mode = String(getConfigValue(vscode.workspace.getConfiguration(), 'backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
     const digitsOnly = mode !== 'qqbot';
     const userId = await askForTarget(
       mode === 'qqbot' ? 'Target QQBot user openid' : 'Target QQ number',
@@ -321,13 +322,13 @@ function activate(context) {
     }
   });
 
-  const sendGroupMessage = vscode.commands.registerCommand('ncat.sendGroupMessage', async () => {
+  const sendGroupMessage = vscode.commands.registerCommand(commandId('sendGroupMessage'), async () => {
     const ready = await ensureConnectedWithPrompt(runtime);
     if (!ready) {
       return;
     }
 
-    const mode = String(vscode.workspace.getConfiguration().get('ncat.backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
+    const mode = String(getConfigValue(vscode.workspace.getConfiguration(), 'backendMode', 'qqbot') || 'qqbot').trim().toLowerCase();
     const digitsOnly = mode !== 'qqbot';
     const groupId = await askForTarget(
       mode === 'qqbot' ? 'Target QQBot group_openid' : 'Target Group number',
@@ -356,11 +357,11 @@ function activate(context) {
     }
   });
 
-  const showLogs = vscode.commands.registerCommand('ncat.showLogs', () => {
+  const showLogs = vscode.commands.registerCommand(commandId('showLogs'), () => {
     runtime.showLogs();
   });
 
-  const redirectToVsCodeChat = vscode.commands.registerCommand('ncat.redirectToVsCodeChat', async () => {
+  const redirectToVsCodeChat = vscode.commands.registerCommand(commandId('redirectToVsCodeChat'), async () => {
     const message = await askForMessage();
     if (!message) {
       return;
@@ -385,7 +386,7 @@ function activate(context) {
     }
   });
 
-  const openQQAssistantChat = vscode.commands.registerCommand('ncat.openQQAssistantChat', async () => {
+  const openQQAssistantChat = vscode.commands.registerCommand(commandId('openQQAssistantChat'), async () => {
     const prompt = await vscode.window.showInputBox({
       prompt: 'Optional prompt for QQ Assistant',
       placeHolder: 'Leave empty to just open the chat with @qq selected',
@@ -403,7 +404,7 @@ function activate(context) {
     }
   });
 
-  const openAnotherDebugWindow = vscode.commands.registerCommand('ncat.openAnotherDebugWindow', async () => {
+  const openAnotherDebugWindow = vscode.commands.registerCommand(commandId('openAnotherDebugWindow'), async () => {
     const targetUri = await pickFolderForNewWindow();
     if (!targetUri) {
       return;
@@ -416,7 +417,7 @@ function activate(context) {
     vscode.window.showInformationMessage(`Launching another Extension Development Host for ${targetUri.fsPath}`);
   });
 
-  const authorizeAI = vscode.commands.registerCommand('ncat.authorizeAI', async () => {
+  const authorizeAI = vscode.commands.registerCommand(commandId('authorizeAI'), async () => {
     if (typeof runtime.prepareLanguageModelAccess !== 'function') {
       vscode.window.showInformationMessage('Current backend mode does not use QQBot AI auto-reply.');
       return;
@@ -461,7 +462,7 @@ function activate(context) {
   );
 
   const config = vscode.workspace.getConfiguration();
-  if (config.get('ncat.autoConnect', true)) {
+  if (getConfigValue(config, 'autoConnect', true)) {
     runtime.startPluginRuntime({
       silent: true,
       reason: 'auto-connect',

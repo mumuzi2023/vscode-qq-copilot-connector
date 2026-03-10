@@ -19,9 +19,9 @@ Thumbs.db
 .vscode-test/
 恢复codex.bat
 
-# Local runtime (NCat binaries/config)
-local/ncat/*
-!local/ncat/.gitkeep
+# Local runtime (compatible backend binaries/config)
+local/backend/*
+!local/backend/.gitkeep
 
 # VS Code extension package artifacts
 dist/

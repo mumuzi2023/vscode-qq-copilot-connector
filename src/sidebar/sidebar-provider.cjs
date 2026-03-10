@@ -2,6 +2,12 @@ const vscode = require('vscode');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const {
+  HOME_STICKER_DIR_SEGMENTS,
+  SETTINGS_SEARCH_QUERY,
+  WORKSPACE_STICKER_DIR_NAME,
+  updateConfigValue,
+} = require('../core/qq-connector.cjs');
 const { renderHtml } = require('./render-html.cjs');
 
 const QQBOT_AVATAR_RELATIVE_PATH = ['images', 'qqbot-avatar.png'];
@@ -117,7 +123,7 @@ function mimeFromStickerFileName(fileName) {
   return 'application/octet-stream';
 }
 
-class NCatSidebarProvider {
+class QQSidebarProvider {
   constructor(runtime) {
     this.runtime = runtime;
     this.view = null;
@@ -325,7 +331,7 @@ class NCatSidebarProvider {
           return;
         }
         if (action === 'openExtensionSettings') {
-          await vscode.commands.executeCommand('workbench.action.openSettings', 'ncat');
+          await vscode.commands.executeCommand('workbench.action.openSettings', SETTINGS_SEARCH_QUERY);
           return;
         }
         if (action === 'openBackendWeb') {
@@ -930,9 +936,12 @@ class NCatSidebarProvider {
 
   resolveStickerPackDir() {
     const config = vscode.workspace.getConfiguration();
-    const ncatRoot = String(this.runtime?.resolveNCatRootDir?.(config) || '').trim();
-    if (ncatRoot) {
-      return path.join(ncatRoot, 'vscode-sticker-pack');
+    const backendRoot = String(
+      this.runtime?.resolveLocalBackendRootDir?.(config)
+      || ''
+    ).trim();
+    if (backendRoot) {
+      return path.join(backendRoot, 'vscode-sticker-pack');
     }
     const globalStorage = String(this.runtime?.context?.globalStorageUri?.fsPath || '').trim();
     if (globalStorage) {
@@ -940,9 +949,9 @@ class NCatSidebarProvider {
     }
     const workspaceRoot = String(this.runtime?.getWorkspaceRoot?.() || '').trim();
     if (workspaceRoot) {
-      return path.join(workspaceRoot, '.ncat-sticker-pack');
+      return path.join(workspaceRoot, WORKSPACE_STICKER_DIR_NAME);
     }
-    return path.join(os.homedir(), 'NCatVSC', 'sticker-pack');
+    return path.join(os.homedir(), ...HOME_STICKER_DIR_SEGMENTS);
   }
 
   async saveImagesToStickerPack(urls) {
@@ -1197,10 +1206,10 @@ class NCatSidebarProvider {
     const target = hasWorkspace ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
     const targetName = hasWorkspace ? 'workspace' : 'global';
     try {
-      await config.update('ncat.qqbotAppId', qqbotAppId, target);
-      await config.update('ncat.qqbotClientSecret', qqbotClientSecret, target);
-      await config.update('ncat.qqbotBotName', qqbotBotName, target);
-      await config.update('ncat.qqbotMarkdownSupport', qqbotMarkdownSupport, target);
+      await updateConfigValue(config, 'qqbotAppId', qqbotAppId, target);
+      await updateConfigValue(config, 'qqbotClientSecret', qqbotClientSecret, target);
+      await updateConfigValue(config, 'qqbotBotName', qqbotBotName, target);
+      await updateConfigValue(config, 'qqbotMarkdownSupport', qqbotMarkdownSupport, target);
       this.runtime.log(
         `Backend settings saved: target=${targetName}, qqbotAppId=${qqbotAppId || '(empty)'}`
       );
@@ -1227,5 +1236,5 @@ class NCatSidebarProvider {
 }
 
 module.exports = {
-  NCatSidebarProvider,
+  QQSidebarProvider,
 };

@@ -61,7 +61,6 @@ This extension uses the QQ official Bot API as its default connection mode, embe
 ## Related Projects
 
 - [sliverp/qqbot](https://github.com/sliverp/qqbot)
-- [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ)
 
 ## Notes
 

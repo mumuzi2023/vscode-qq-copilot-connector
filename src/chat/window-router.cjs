@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vscode = require('vscode');
+const { LOG_DIR_NAME } = require('../core/qq-connector.cjs');
 
 const WINDOW_STALE_MS = 45 * 1000;
 const HEARTBEAT_MS = 15 * 1000;
@@ -64,7 +65,7 @@ class WindowRouter {
 
     const baseDir = context?.globalStorageUri?.fsPath
       || context?.logUri?.fsPath
-      || path.join(context?.extensionPath || process.cwd(), '.ncat-logs');
+      || path.join(context?.extensionPath || process.cwd(), LOG_DIR_NAME);
     this.routerDir = path.join(baseDir, 'window-router');
     this.windowsDir = path.join(this.routerDir, 'windows');
     this.requestsDir = path.join(this.routerDir, 'requests');

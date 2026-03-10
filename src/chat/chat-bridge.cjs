@@ -1,6 +1,7 @@
 const http = require('node:http');
 const crypto = require('node:crypto');
 const vscode = require('vscode');
+const { affectsConfiguration, getConfigValue } = require('../core/qq-connector.cjs');
 
 function createRequestId() {
   return `req_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
@@ -60,31 +61,31 @@ class ChatBridge {
     }
   }
 
-  getConfig() {
+  getBridgeConfig() {
     const config = vscode.workspace.getConfiguration();
     return {
-      enabled: config.get('ncat.chatBridgeEnabled', false) === true,
-      port: Math.max(1, Math.min(65535, Number(config.get('ncat.chatBridgePort', 27124) || 27124))),
-      token: String(config.get('ncat.chatBridgeToken', '') || '').trim(),
-      defaultMode: normalizeMode(config.get('ncat.chatBridgeDefaultMode', 'panel'), 'panel'),
-      defaultAutoSend: config.get('ncat.chatBridgeAutoSend', true) !== false,
-      mirrorOutput: config.get('ncat.chatBridgeMirrorOutput', true) !== false,
+      enabled: getConfigValue(config, 'chatBridgeEnabled', false) === true,
+      port: Math.max(1, Math.min(65535, Number(getConfigValue(config, 'chatBridgePort', 27124) || 27124))),
+      token: String(getConfigValue(config, 'chatBridgeToken', '') || '').trim(),
+      defaultMode: normalizeMode(getConfigValue(config, 'chatBridgeDefaultMode', 'panel'), 'panel'),
+      defaultAutoSend: getConfigValue(config, 'chatBridgeAutoSend', true) !== false,
+      mirrorOutput: getConfigValue(config, 'chatBridgeMirrorOutput', true) !== false,
     };
   }
 
   affectsConfiguration(event) {
-    return [
-      'ncat.chatBridgeEnabled',
-      'ncat.chatBridgePort',
-      'ncat.chatBridgeToken',
-      'ncat.chatBridgeDefaultMode',
-      'ncat.chatBridgeAutoSend',
-      'ncat.chatBridgeMirrorOutput',
-    ].some((key) => event.affectsConfiguration(key));
+    return affectsConfiguration(event, [
+      'chatBridgeEnabled',
+      'chatBridgePort',
+      'chatBridgeToken',
+      'chatBridgeDefaultMode',
+      'chatBridgeAutoSend',
+      'chatBridgeMirrorOutput',
+    ]);
   }
 
   getStatus() {
-    const config = this.getConfig();
+    const config = this.getBridgeConfig();
     return {
       enabled: config.enabled,
       listening: Boolean(this.server),
@@ -97,7 +98,7 @@ class ChatBridge {
   }
 
   async syncServer() {
-    const config = this.getConfig();
+    const config = this.getBridgeConfig();
     if (!config.enabled) {
       await this.stopServer();
       return;
@@ -160,7 +161,7 @@ class ChatBridge {
       return;
     }
 
-    const config = this.getConfig();
+    const config = this.getBridgeConfig();
     if (config.token) {
       const authHeader = String(request.headers.authorization || '').trim();
       const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
@@ -205,7 +206,7 @@ class ChatBridge {
   }
 
   normalizeRemoteRequest(payload, options = {}) {
-    const config = this.getConfig();
+    const config = this.getBridgeConfig();
     const source = String(options.source || payload?.source || 'manual').trim() || 'manual';
     const requestId = String(payload?.requestId || createRequestId()).trim() || createRequestId();
     const sessionKey = String(payload?.sessionKey || `${source}:${requestId}`).trim() || `${source}:${requestId}`;
@@ -255,7 +256,7 @@ class ChatBridge {
       note: 'Remote requests are handled by the local QQ assistant participant pipeline. No built-in Copilot chat injection is performed.',
     };
     let mirrored = null;
-    if (this.getConfig().mirrorOutput) {
+    if (this.getBridgeConfig().mirrorOutput) {
       const orchestrator = this.getOrchestrator();
       if (!orchestrator || typeof orchestrator.handleRemoteRequest !== 'function') {
         throw new Error('Chat orchestrator is unavailable.');

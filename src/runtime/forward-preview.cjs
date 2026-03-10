@@ -103,7 +103,7 @@ async function getForwardPreview(runtime, forwardId, context = {}) {
 
   const ok = await runtime.ensureConnected();
   if (!ok) {
-    throw new Error('NCat is not connected.');
+    throw new Error('Local QQ backend is not connected.');
   }
 
   const response = await callGetForwardMsg(runtime, value);

@@ -11,4 +11,4 @@ if (Number.isNaN(major) || major < 20) {
   process.exit(1);
 }
 
-console.log('[doctor] Environment looks good for the NCat smoke test.');
+console.log('[doctor] Environment looks good for the local backend smoke test.');

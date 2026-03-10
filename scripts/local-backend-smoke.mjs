@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import process from 'node:process';
 
-const rawUrl = process.env.NCAT_WS_URL || 'ws://127.0.0.1:3001';
-const token = process.env.NCAT_TOKEN || '';
+const rawUrl = process.env.QQ_CONNECTOR_WS_URL || 'ws://127.0.0.1:3001';
+const token = process.env.QQ_CONNECTOR_TOKEN || '';
 
 let wsUrl;
 try {
@@ -11,8 +11,8 @@ try {
     url.searchParams.set('access_token', token);
   }
   wsUrl = url.toString();
-} catch (error) {
-  console.error('[smoke] Invalid NCAT_WS_URL:', rawUrl);
+} catch {
+  console.error('[smoke] Invalid QQ_CONNECTOR_WS_URL:', rawUrl);
   process.exit(1);
 }
 
@@ -79,7 +79,7 @@ ws.addEventListener('message', (event) => {
 });
 
 ws.addEventListener('error', (event) => {
-  console.error('[smoke] WebSocket error. Check URL/token/NCat status.', event?.message || '');
+  console.error('[smoke] WebSocket error. Check URL/token/backend status.', event?.message || '');
 });
 
 ws.addEventListener('close', (event) => {

@@ -5,12 +5,11 @@ const WebSocket = require('ws');
 const { getPrivateAvatarUrl, getGroupAvatarUrl } = require('../core/avatar-utils.cjs');
 const { clipText, toBrief } = require('../core/message-utils.cjs');
 const { ChatOrchestrator } = require('../chat/chat-orchestrator.cjs');
+const { CHAT_CACHE_STORE_KEY, HIDDEN_TARGETS_STORE_KEY, LOG_DIR_NAME, commandId, getConfigValue } = require('../core/qq-connector.cjs');
 const { persistCacheNow, restoreCachedSessions } = require('./cache-store.cjs');
 const { normalizeOutgoingRequest } = require('./outgoing-message.cjs');
 
 const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const CACHE_STORE_KEY = 'ncat.chatCache.v1';
-const HIDDEN_TARGETS_STORE_KEY = 'ncat.hiddenTargets.v1';
 const API_BASE = 'https://api.sgroup.qq.com';
 const TOKEN_URL = 'https://bots.qq.com/app/getAppAccessToken';
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000, 60000];
@@ -252,13 +251,13 @@ class QQBotRuntime {
 
     this.output = vscode.window.createOutputChannel('QQ Copilot Connector');
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    this.statusBar.command = 'ncat.connect';
+    this.statusBar.command = commandId('connect');
     this.statusBar.text = '$(plug) QQBot: Offline';
     this.statusBar.tooltip = 'Click to connect QQBot';
     this.statusBar.show();
 
     this.restoreHiddenTargets();
-    restoreCachedSessions(this, CACHE_STORE_KEY);
+    restoreCachedSessions(this, CHAT_CACHE_STORE_KEY);
     this.ensureSharedStateDir();
     this.log('QQBot runtime initialized.');
   }
@@ -290,7 +289,7 @@ class QQBotRuntime {
 
   getMaxMessagesPerChat() {
     const config = vscode.workspace.getConfiguration();
-    const value = Number(config.get('ncat.maxMessagesPerChat', 500));
+    const value = Number(getConfigValue(config, 'maxMessagesPerChat', 500));
     if (Number.isNaN(value)) {
       return 500;
     }
@@ -300,27 +299,28 @@ class QQBotRuntime {
   getQQBotConfig() {
     const config = vscode.workspace.getConfiguration();
     return {
-      appId: String(config.get('ncat.qqbotAppId', '') || '').trim(),
-      clientSecret: String(config.get('ncat.qqbotClientSecret', '') || '').trim(),
-      botName: String(config.get('ncat.qqbotBotName', 'QQBot') || 'QQBot').trim() || 'QQBot',
-      markdownSupport: config.get('ncat.qqbotMarkdownSupport', false) === true,
+      appId: String(getConfigValue(config, 'qqbotAppId', '') || '').trim(),
+      clientSecret: String(getConfigValue(config, 'qqbotClientSecret', '') || '').trim(),
+      botName: String(getConfigValue(config, 'qqbotBotName', 'QQBot') || 'QQBot').trim() || 'QQBot',
+      markdownSupport: getConfigValue(config, 'qqbotMarkdownSupport', false) === true,
     };
   }
 
   getAgentConfig() {
     const config = vscode.workspace.getConfiguration();
     return {
-      autoReply: config.get('ncat.qqbotAutoReply', true) !== false,
-      useTools: config.get('ncat.qqbotUseTools', true) !== false,
-      modelVendor: String(config.get('ncat.qqbotModelVendor', 'copilot') || '').trim(),
-      modelFamily: String(config.get('ncat.qqbotModelFamily', '') || '').trim(),
+      autoReply: getConfigValue(config, 'qqbotAutoReply', true) !== false,
+      useTools: getConfigValue(config, 'qqbotUseTools', true) !== false,
+      modelVendor: String(getConfigValue(config, 'qqbotModelVendor', 'copilot') || '').trim(),
+      modelFamily: String(getConfigValue(config, 'qqbotModelFamily', '') || '').trim(),
       systemPrompt: String(
-        config.get(
-          'ncat.qqbotSystemPrompt',
+        getConfigValue(
+          config,
+          'qqbotSystemPrompt',
           '你是在 VS Code 中运行的 QQBot 助手。回答要直接、简洁、准确。必要时可以调用可用工具。'
         ) || ''
       ).trim(),
-      maxToolRounds: Math.max(1, Math.min(8, Number(config.get('ncat.qqbotMaxToolRounds', 4) || 4))),
+      maxToolRounds: Math.max(1, Math.min(8, Number(getConfigValue(config, 'qqbotMaxToolRounds', 4) || 4))),
     };
   }
 
@@ -400,7 +400,7 @@ class QQBotRuntime {
   resolveSharedStateDir() {
     const baseDir = this.context?.globalStorageUri?.fsPath
       || this.context?.logUri?.fsPath
-      || path.join(this.context?.extensionPath || process.cwd(), '.ncat-logs');
+      || path.join(this.context?.extensionPath || process.cwd(), LOG_DIR_NAME);
     return baseDir;
   }
 
@@ -464,12 +464,12 @@ class QQBotRuntime {
     }
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      persistCacheNow(this, CACHE_STORE_KEY);
+      persistCacheNow(this, CHAT_CACHE_STORE_KEY);
     }, 800);
   }
 
   persistCacheNow() {
-    persistCacheNow(this, CACHE_STORE_KEY);
+    persistCacheNow(this, CHAT_CACHE_STORE_KEY);
   }
 
   clearChatCache() {
@@ -1178,7 +1178,7 @@ class QQBotRuntime {
 
   scheduleReconnect(reason = 'unknown') {
     const config = vscode.workspace.getConfiguration();
-    if (this.manualDisconnect || this.disposed || config.get('ncat.autoReconnect', true) !== true) {
+    if (this.manualDisconnect || this.disposed || getConfigValue(config, 'autoReconnect', true) !== true) {
       return;
     }
     this.clearReconnectTimer();

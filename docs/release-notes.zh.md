@@ -1,6 +1,15 @@
-# QQ Copilot Connector 0.0.1
+# QQ Copilot Connector 0.0.2
 
-这是项目的首个对外可安装发布版本，当前能力如下：
+这个版本主要完成命名迁移、激活修复和图标更新，适合作为新的可安装发布版本。
+
+## 本次重点修复
+
+- 全面迁移扩展公开命名到 `qqConnector.*`。
+- 修复命令激活时机，避免 `qqConnector.connect` 找不到。
+- 修复 runtime 缓存常量遗漏导致的扩展激活失败与顶部持续转圈。
+- 更新 Activity Bar / Sidebar QQ 图标。
+
+## 当前能力
 
 ## 核心能力
 

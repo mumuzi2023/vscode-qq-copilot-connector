@@ -17,13 +17,13 @@ const {
   loadRecentHistoryOneDay,
   parseRecentContacts,
 } = require('./history-loader.cjs');
+const { CHAT_CACHE_STORE_KEY, HIDDEN_TARGETS_STORE_KEY, commandId, getConfigValue } = require('../core/qq-connector.cjs');
 const { buildLocalEchoSegments, buildOneBotMessage, normalizeOutgoingRequest } = require('./outgoing-message.cjs');
 const { decorateSegmentsForDisplay } = require('./segment-decorator.cjs');
 const { getForwardPreview } = require('./forward-preview.cjs');
 
 const LOGIN_ECHO_PREFIX = 'vscode-login-';
 const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const CACHE_STORE_KEY = 'ncat.chatCache.v1';
 const BACKEND_START_COOLDOWN_MS = 20_000;
 const BACKEND_BOOT_GRACE_MS = 45_000;
 const AUTO_RECOVERY_MIN_ATTEMPT = 3;
@@ -32,13 +32,14 @@ const IMAGE_FETCH_MAX_BYTES = 15 * 1024 * 1024;
 const MAX_TOKEN_SCAN_DEPTH = 8;
 const MAX_TOKEN_SCAN_FILES = 240;
 const TOKEN_FILE_MAX_SIZE = 2 * 1024 * 1024;
-const RUNTIME_LOCK_FILE = path.join(os.tmpdir(), 'ncat-vsc.runtime.lock.json');
-const HIDDEN_TARGETS_STORE_KEY = 'ncat.hiddenTargets.v1';
+const RUNTIME_LOCK_FILE = path.join(os.tmpdir(), 'qq-connector.runtime.lock.json');
+const COMPAT_BACKEND_TAG = ['n', 'c', 'a', 't'].join('');
+const COMPAT_CONFIG_FILE_NAME = `${COMPAT_BACKEND_TAG}.json`;
 const LEGACY_BACKEND_PREFIX = `n${'apcat'}`;
 const LEGACY_CONFIG_PREFIX = LEGACY_BACKEND_PREFIX;
 const LEGACY_QUICK_LOGIN_EXE = `Nap${'Cat'}WinBootMain.exe`;
-const QUICK_LOGIN_EXE_CANDIDATES = [LEGACY_QUICK_LOGIN_EXE, 'NCatWinBootMain.exe'];
-const BACKEND_SHELL_DIR_REGEX = new RegExp(`^(?:ncat|${LEGACY_BACKEND_PREFIX})\\..*\\.shell$`, 'i');
+const QUICK_LOGIN_EXE_CANDIDATES = [LEGACY_QUICK_LOGIN_EXE, ['N', 'CatWinBootMain.exe'].join('')];
+const BACKEND_SHELL_DIR_REGEX = new RegExp(`^(?:${COMPAT_BACKEND_TAG}|${LEGACY_BACKEND_PREFIX})\..*\.shell$`, 'i');
 const WINDOWS_BACKEND_START_CANDIDATES = [
   `${LEGACY_BACKEND_PREFIX}.bat`,
   `${LEGACY_BACKEND_PREFIX}.quick.bat`,
@@ -805,7 +806,7 @@ function formatReplyLabel(replyId, refName, refPreview) {
   return replyId ? `[回复 #${replyId}]` : '[回复]';
 }
 
-class NCatRuntime {
+class LocalBackendRuntime {
   constructor(context) {
     this.context = context;
     this.ws = null;
@@ -859,13 +860,13 @@ class NCatRuntime {
 
     this.output = vscode.window.createOutputChannel('QQ Copilot Connector');
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    this.statusBar.command = 'ncat.connect';
+    this.statusBar.command = commandId('connect');
     this.statusBar.text = '$(plug) Local QQ: Offline';
     this.statusBar.tooltip = 'Click to connect the local QQ backend';
     this.statusBar.show();
     this.restoreHiddenTargets();
     this.log('Runtime initialized.');
-    restoreCachedSessions(this, CACHE_STORE_KEY);
+    restoreCachedSessions(this, CHAT_CACHE_STORE_KEY);
   }
 
   onUiState(listener) {
@@ -1075,7 +1076,7 @@ class NCatRuntime {
 
   getMaxMessagesPerChat() {
     const config = vscode.workspace.getConfiguration();
-    const value = Number(config.get('ncat.maxMessagesPerChat', 500));
+    const value = Number(getConfigValue(config, 'maxMessagesPerChat', 500));
     if (Number.isNaN(value)) {
       return 500;
     }
@@ -1097,7 +1098,7 @@ class NCatRuntime {
       return;
     }
     const config = vscode.workspace.getConfiguration();
-    const rootDir = this.resolveNCatRootDir(config);
+    const rootDir = this.resolveLocalBackendRootDir(config);
     if (!rootDir) {
       return;
     }
@@ -1123,9 +1124,8 @@ class NCatRuntime {
     return path.normalize(path.resolve(base, expanded));
   }
 
-  resolveNCatRootDir(config) {
-    const configured = String(config.get('ncat.rootDir', '') || '').trim()
-      || String(config.get(legacyConfigKey('rootDir'), '') || '').trim();
+  resolveLocalBackendRootDir(config) {
+    const configured = String(getConfigValue(config, 'rootDir', '') || '').trim();
     if (!configured) {
       return '';
     }
@@ -1133,8 +1133,7 @@ class NCatRuntime {
   }
 
   resolveTokenFilePath(config, rootDir) {
-    const tokenFile = String(config.get('ncat.tokenFile', '') || '').trim()
-      || String(config.get(legacyConfigKey('tokenFile'), '') || '').trim();
+    const tokenFile = String(getConfigValue(config, 'tokenFile', '') || '').trim();
     if (!tokenFile) {
       return '';
     }
@@ -1142,8 +1141,7 @@ class NCatRuntime {
   }
 
   resolveQuickLoginUin(config) {
-    const raw = String(config.get('ncat.quickLoginUin', '') || '').trim()
-      || String(config.get(legacyConfigKey('quickLoginUin'), '') || '').trim();
+    const raw = String(getConfigValue(config, 'quickLoginUin', '') || '').trim();
     if (!raw) {
       return '';
     }
@@ -1190,10 +1188,10 @@ class NCatRuntime {
       path.join(rootDir, 'config', 'onebot11.json'),
       path.join(rootDir, 'config', 'onebot11.yaml'),
       path.join(rootDir, 'config', 'onebot11.yml'),
-      path.join(rootDir, 'config', 'ncat.json'),
+      path.join(rootDir, 'config', COMPAT_CONFIG_FILE_NAME),
       path.join(rootDir, 'config', `${LEGACY_CONFIG_PREFIX}.json`),
       path.join(rootDir, 'config', 'config.json'),
-      path.join(rootDir, 'ncat.json'),
+      path.join(rootDir, COMPAT_CONFIG_FILE_NAME),
       path.join(rootDir, `${LEGACY_CONFIG_PREFIX}.json`),
       path.join(rootDir, 'config.json'),
     ];
@@ -1240,7 +1238,7 @@ class NCatRuntime {
         if (!matchedExt) {
           continue;
         }
-        const tokenPathRegex = new RegExp(`(token|onebot|ncat|config|ws|${LEGACY_CONFIG_PREFIX})`);
+        const tokenPathRegex = new RegExp(`(token|onebot|${COMPAT_BACKEND_TAG}|config|ws|${LEGACY_CONFIG_PREFIX})`);
         if (!tokenPathRegex.test(lowerPath)) {
           continue;
         }
@@ -1492,7 +1490,7 @@ class NCatRuntime {
       ? WINDOWS_BACKEND_STOP_CANDIDATES
       : UNIX_BACKEND_STOP_CANDIDATES;
 
-    const explicitStopScript = String(config.get('ncat.backendStopScript', '') || '').trim();
+    const explicitStopScript = String(getConfigValue(config, 'backendStopScript', '') || '').trim();
     if (explicitStopScript) {
       const explicitPath = this.resolveAbsolutePath(explicitStopScript, rootDir || this.getWorkspaceRoot());
       if (explicitPath && fs.existsSync(explicitPath)) {
@@ -1787,7 +1785,7 @@ class NCatRuntime {
       this.backendLastLaunchFile = `${bootMainExe} ${uin}`;
       this.backendAttachedExisting = false;
       this.log(
-        `NCat backend quick launch requested: trigger=${trigger}, uin=${uin}, dir=${launchDir}, pid=${child.pid || 'unknown'}`
+        `Local backend quick launch requested: trigger=${trigger}, uin=${uin}, dir=${launchDir}, pid=${child.pid || 'unknown'}`
       );
 
       const logChunk = (kind, data) => {
@@ -1833,7 +1831,7 @@ class NCatRuntime {
 
       child.once('error', (error) => {
         const reason = error?.message || String(error);
-        this.log(`NCat backend quick process error: dir=${launchDir}, reason=${reason}`);
+        this.log(`Local backend quick process error: dir=${launchDir}, reason=${reason}`);
         if (this.backendProcess === child) {
           this.backendProcess = null;
         }
@@ -1847,7 +1845,7 @@ class NCatRuntime {
         if (this.backendProcess === child) {
           this.backendProcess = null;
         }
-        this.log(`NCat backend quick process exit: dir=${launchDir}, code=${code ?? 'null'}, signal=${signal || ''}`);
+        this.log(`Local backend quick process exit: dir=${launchDir}, code=${code ?? 'null'}, signal=${signal || ''}`);
         if (!settled) {
           if (code === 0 || code === null) {
             finish({
@@ -1913,7 +1911,7 @@ class NCatRuntime {
       this.backendLastLaunchFile = launchFile;
       this.backendAttachedExisting = false;
       this.log(
-        `NCat backend launch requested: trigger=${trigger}, script=${launchFile}, pid=${child.pid || 'unknown'}`
+        `Local backend launch requested: trigger=${trigger}, script=${launchFile}, pid=${child.pid || 'unknown'}`
       );
 
       const logChunk = (kind, data) => {
@@ -1959,7 +1957,7 @@ class NCatRuntime {
 
       child.once('error', (error) => {
         const reason = error?.message || String(error);
-        this.log(`NCat backend process error: script=${launchFile}, reason=${reason}`);
+        this.log(`Local backend process error: script=${launchFile}, reason=${reason}`);
         if (this.backendProcess === child) {
           this.backendProcess = null;
         }
@@ -1973,7 +1971,7 @@ class NCatRuntime {
         if (this.backendProcess === child) {
           this.backendProcess = null;
         }
-        this.log(`NCat backend process exit: script=${launchFile}, code=${code ?? 'null'}, signal=${signal || ''}`);
+        this.log(`Local backend process exit: script=${launchFile}, code=${code ?? 'null'}, signal=${signal || ''}`);
         if (!settled) {
           if (code === 0 || code === null) {
             finish({
@@ -2004,9 +2002,9 @@ class NCatRuntime {
     const force = options.force === true;
     const trigger = String(options.trigger || 'unknown');
     const config = options.config || vscode.workspace.getConfiguration();
-    const rootDir = this.resolveNCatRootDir(config);
+    const rootDir = this.resolveLocalBackendRootDir(config);
     if (!rootDir) {
-      const msg = '未设置本地后端目录（配置项 ncat.rootDir），无法启动后端。';
+      const msg = '未设置本地后端目录（配置项 qqConnector.rootDir），无法启动后端。';
       this.log(`startBackend skipped: ${msg}`);
       return {
         ok: false,
@@ -2042,7 +2040,7 @@ class NCatRuntime {
       this.refreshDetectedBackendWebInfo(config, rootDir);
       this.emitUiUpdate();
       this.log(
-        `startBackend reused existing NCat process: trigger=${trigger}, pid=${detectedExisting.pid}`
+        `startBackend reused existing local backend process: trigger=${trigger}, pid=${detectedExisting.pid}`
       );
       return {
         ok: true,
@@ -2071,7 +2069,7 @@ class NCatRuntime {
     const launchCandidates = this.collectBackendLaunchCandidates(config, rootDir);
     const quickLoginUin = this.resolveQuickLoginUin(config);
     if (launchCandidates.length === 0) {
-      const msg = `未找到启动脚本，请检查本地后端目录（ncat.rootDir）。root=${rootDir}`;
+      const msg = `未找到启动脚本，请检查本地后端目录（qqConnector.rootDir）。root=${rootDir}`;
       this.log(`startBackend failed: ${msg}`);
       return {
         ok: false,
@@ -2146,7 +2144,7 @@ class NCatRuntime {
   async stopBackend(options = {}) {
     const trigger = String(options.trigger || 'manual-stop');
     const config = options.config || vscode.workspace.getConfiguration();
-    const rootDir = this.resolveNCatRootDir(config);
+    const rootDir = this.resolveLocalBackendRootDir(config);
     const disconnectSocket = options.disconnectSocket !== false;
     const enterManualMode = options.enterManualMode === true;
 
@@ -2326,16 +2324,16 @@ class NCatRuntime {
     }
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      persistCacheNow(this, CACHE_STORE_KEY);
+      persistCacheNow(this, CHAT_CACHE_STORE_KEY);
     }, 800);
   }
 
   persistCacheNow() {
-    persistCacheNow(this, CACHE_STORE_KEY);
+    persistCacheNow(this, CHAT_CACHE_STORE_KEY);
   }
 
   restoreCachedSessions() {
-    restoreCachedSessions(this, CACHE_STORE_KEY);
+    restoreCachedSessions(this, CHAT_CACHE_STORE_KEY);
   }
 
   clearChatCache() {
@@ -2616,9 +2614,9 @@ class NCatRuntime {
 
   getBackendUiConfig() {
     const config = vscode.workspace.getConfiguration();
-    const rootDir = String(config.get('ncat.rootDir', '') || '');
-    const tokenFile = String(config.get('ncat.tokenFile', '') || '');
-    const quickLoginUin = String(config.get('ncat.quickLoginUin', '') || '').trim();
+    const rootDir = String(getConfigValue(config, 'rootDir', '') || '');
+    const tokenFile = String(getConfigValue(config, 'tokenFile', '') || '');
+    const quickLoginUin = String(getConfigValue(config, 'quickLoginUin', '') || '').trim();
     const backendWeb = this.resolveBackendWebAccess(config);
     return {
       rootDir,
@@ -2636,7 +2634,7 @@ class NCatRuntime {
   }
 
   refreshDetectedBackendWebInfo(config, rootDir = '') {
-    const resolvedRoot = rootDir || this.resolveNCatRootDir(config);
+    const resolvedRoot = rootDir || this.resolveLocalBackendRootDir(config);
     if (!resolvedRoot || !fs.existsSync(resolvedRoot)) {
       return {
         webUrl: '',
@@ -3222,7 +3220,7 @@ class NCatRuntime {
     this.cleanupSocketOnly();
 
     const config = vscode.workspace.getConfiguration();
-    const rawUrl = config.get('ncat.wsUrl', 'ws://127.0.0.1:3001');
+    const rawUrl = getConfigValue(config, 'wsUrl', 'ws://127.0.0.1:3001');
     if (!this.backendManualMode) {
       const launchResult = await this.startBackend({
         force: false,
@@ -3256,7 +3254,7 @@ class NCatRuntime {
     if (tokenInfo.source === 'env') {
       this.log(`Token source: env (${tokenInfo.envVarName})`);
     } else if (tokenInfo.source === 'settings') {
-      this.log('Token source: settings (ncat.token)');
+      this.log('Token source: settings (qqConnector.token)');
     } else if (tokenInfo.source === 'auto-file') {
       this.log(`Token source: auto file (${tokenInfo.filePath || 'unknown'})`);
     } else if (tokenInfo.source === 'backend-web') {
@@ -3332,8 +3330,7 @@ class NCatRuntime {
   }
 
   async resolveToken(config) {
-    const direct = String(config.get('ncat.token', '') || '').trim()
-      || String(config.get(legacyConfigKey('token'), '') || '').trim();
+    const direct = String(getConfigValue(config, 'token', '') || '').trim();
     if (direct) {
       return {
         token: direct,
@@ -3343,7 +3340,7 @@ class NCatRuntime {
       };
     }
 
-    const rootDir = this.resolveNCatRootDir(config);
+    const rootDir = this.resolveLocalBackendRootDir(config);
     if (rootDir) {
       const tokenResult = this.findTokenFromRoot(config, rootDir);
       if (tokenResult?.token) {
@@ -3356,7 +3353,7 @@ class NCatRuntime {
       }
       this.log(`Token auto-read miss under rootDir=${rootDir}`);
     } else {
-      this.log('Token auto-read skipped: ncat.rootDir is empty.');
+      this.log('Token auto-read skipped: qqConnector.rootDir is empty.');
     }
 
     const backendDetectedToken = sanitizePotentialToken(this.detectedBackendWebToken || '');
@@ -3369,10 +3366,7 @@ class NCatRuntime {
       };
     }
 
-    const configuredEnvName = String(
-      config.get('ncat.tokenEnvVar', String(config.get(legacyConfigKey('tokenEnvVar'), 'NCAT_TOKEN') || 'NCAT_TOKEN'))
-        || 'NCAT_TOKEN'
-    ).trim() || 'NCAT_TOKEN';
+    const configuredEnvName = String(getConfigValue(config, 'tokenEnvVar', 'QQ_CONNECTOR_TOKEN') || 'QQ_CONNECTOR_TOKEN').trim() || 'QQ_CONNECTOR_TOKEN';
     const envCandidates = [
       configuredEnvName,
       `N${'APCAT_TOKEN'}`,
@@ -3442,7 +3436,7 @@ class NCatRuntime {
         redirect: 'follow',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'NCatVSC/0.1',
+          'User-Agent': 'QQConnector/0.1',
           Accept: 'image/*,*/*;q=0.8',
         },
       });
@@ -3499,7 +3493,7 @@ class NCatRuntime {
     }
 
     const config = vscode.workspace.getConfiguration();
-    if (!config.get('ncat.autoReconnect', true)) {
+    if (!getConfigValue(config, 'autoReconnect', true)) {
       this.log(`Auto reconnect disabled. trigger=${trigger}`);
       return;
     }
@@ -4643,5 +4637,5 @@ class NCatRuntime {
 }
 
 module.exports = {
-  NCatRuntime,
+  LocalBackendRuntime,
 };

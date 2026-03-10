@@ -53,8 +53,16 @@ function persistCacheNow(runtime, cacheStoreKey) {
   }
 }
 
-function restoreCachedSessions(runtime, cacheStoreKey) {
-  const payload = runtime.context.globalState.get(cacheStoreKey);
+function restoreCachedSessions(runtime, cacheStoreKey, legacyCacheStoreKeys = []) {
+  let payload = runtime.context.globalState.get(cacheStoreKey);
+  if ((!payload || typeof payload !== 'object') && Array.isArray(legacyCacheStoreKeys)) {
+    for (const key of legacyCacheStoreKeys) {
+      payload = runtime.context.globalState.get(key);
+      if (payload && typeof payload === 'object') {
+        break;
+      }
+    }
+  }
   if (!payload || typeof payload !== 'object') {
     return;
   }

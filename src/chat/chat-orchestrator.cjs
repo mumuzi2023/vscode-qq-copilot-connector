@@ -1,6 +1,7 @@
 const { exec } = require('node:child_process');
 const { promisify } = require('node:util');
 const vscode = require('vscode');
+const { getConfigValue } = require('../core/qq-connector.cjs');
 
 const execAsync = promisify(exec);
 
@@ -105,7 +106,7 @@ class ChatOrchestrator {
 
   allowRemoteNativeUiTools() {
     const config = vscode.workspace.getConfiguration();
-    return config.get('ncat.qqbotRemoteAllowNativeUiTools', false) === true;
+    return getConfigValue(config, 'qqbotRemoteAllowNativeUiTools', false) === true;
   }
 
   getToolName(tool) {
